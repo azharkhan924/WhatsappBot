@@ -325,12 +325,31 @@ function removeFromWhitelist(number) {
   saveWhitelist(list);
 }
 
+// ===== Disconnect / Reset =====
+$('disconnect-btn')?.addEventListener('click', () => {
+  localStorage.removeItem('bot_api_base');
+  localStorage.removeItem('bot_dashboard_key');
+  API_BASE = '';
+  DASHBOARD_KEY = '';
+  if (socket) socket.disconnect();
+  clearInterval(pollTimer);
+  showGate();
+});
+
 // ===== Init =====
 function init() {
   showDashboard();
   connectSocket();
   startPollFallback();
   loadConfig();
+}
+
+// Auto-fill gate URL with current origin if empty
+if (window.location.origin && !window.location.origin.startsWith('file:')) {
+  const gateInput = $('gate-url');
+  if (gateInput && !gateInput.value) {
+    gateInput.value = window.location.origin;
+  }
 }
 
 // On load: skip the gate if we already have saved credentials
