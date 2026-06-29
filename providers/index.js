@@ -6,10 +6,12 @@
 const config = require('../config');
 const GeminiProvider = require('./GeminiProvider');
 const GroqProvider = require('./GroqProvider');
+const NvidiaProvider = require('./NvidiaProvider');
 
 const providers = {
   gemini: GeminiProvider,
   groq: GroqProvider,
+  nvidia: NvidiaProvider,
   // openai: OpenAIProvider,   // reserved for future use
   // claude: ClaudeProvider,   // reserved for future use
 };

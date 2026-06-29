@@ -12,11 +12,18 @@ const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 class GeminiProvider extends AIProvider {
   constructor() {
     super();
-    this.apiKey = config.ai.gemini.apiKey;
+    this.apiKeys = config.ai.gemini.apiKeys || [];
+    // For backward compatibility, fallback to apiKey if apiKeys is empty
+    if (this.apiKeys.length === 0 && config.ai.gemini.apiKey) {
+      this.apiKeys.push(config.ai.gemini.apiKey);
+    }
     this.model = config.ai.gemini.model;
+    this.currentKeyIndex = 0;
 
-    if (!this.apiKey) {
-      logger.error('GEMINI_API_KEY is not set. Gemini provider will fail at request time.');
+    if (this.apiKeys.length === 0) {
+      logger.error('No Gemini API keys are configured. Gemini provider will fail at request time.');
+    } else {
+      logger.info(`Gemini provider initialized with ${this.apiKeys.length} API keys.`);
     }
   }
 
@@ -25,7 +32,9 @@ class GeminiProvider extends AIProvider {
   }
 
   async generateReply({ systemPrompt, history, userMessage }) {
-    const url = `${BASE_URL}/${this.model}:generateContent?key=${this.apiKey}`;
+    if (this.apiKeys.length === 0) {
+      throw new Error('No Gemini API keys are configured.');
+    }
 
     // Map our internal history format to Gemini's "contents" format.
     const contents = [];
@@ -48,22 +57,48 @@ class GeminiProvider extends AIProvider {
       },
     };
 
-    const response = await axios.post(url, payload, {
-      headers: { 'Content-Type': 'application/json' },
-      timeout: config.ai.timeoutMs,
-    });
+    let lastError = null;
+    const startIdx = this.currentKeyIndex;
 
-    const candidates = response.data && response.data.candidates;
-    if (!candidates || candidates.length === 0) {
-      throw new Error('Gemini API returned no candidates');
+    for (let i = 0; i < this.apiKeys.length; i++) {
+      const idx = (startIdx + i) % this.apiKeys.length;
+      const apiKey = this.apiKeys[idx];
+      const url = `${BASE_URL}/${this.model}:generateContent?key=${apiKey}`;
+
+      try {
+        const response = await axios.post(url, payload, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: config.ai.timeoutMs,
+        });
+
+        // Successful request: save current index for next time (or stick to it)
+        this.currentKeyIndex = idx;
+
+        const candidates = response.data && response.data.candidates;
+        if (!candidates || candidates.length === 0) {
+          throw new Error('Gemini API returned no candidates');
+        }
+
+        const parts = candidates[0].content && candidates[0].content.parts;
+        if (!parts || parts.length === 0 || !parts[0].text) {
+          throw new Error('Gemini API returned an empty response');
+        }
+
+        return parts.map((p) => p.text).join('').trim();
+      } catch (err) {
+        lastError = err;
+        const isRateLimit = (err.response && err.response.status === 429) || (err.message && err.message.includes('429'));
+        
+        logger.warn(
+          `Gemini API key index ${idx} failed (Rate limit error: ${isRateLimit}): ${err.message}`
+        );
+
+        // Move the index forward to rotate on next attempt
+        this.currentKeyIndex = (idx + 1) % this.apiKeys.length;
+      }
     }
 
-    const parts = candidates[0].content && candidates[0].content.parts;
-    if (!parts || parts.length === 0 || !parts[0].text) {
-      throw new Error('Gemini API returned an empty response');
-    }
-
-    return parts.map((p) => p.text).join('').trim();
+    throw lastError || new Error('All Gemini API keys failed');
   }
 }
 
