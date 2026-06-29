@@ -13,6 +13,9 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 
 const app = express();
 
+// Trust reverse proxies (required for express-rate-limit to work on Render)
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet());
 
