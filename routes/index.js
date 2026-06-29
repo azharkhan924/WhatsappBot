@@ -7,6 +7,7 @@ const router = express.Router();
 const controller = require('../controllers/botController');
 const validate = require('../middlewares/validate');
 const apiKeyAuth = require('../middlewares/apiKeyAuth');
+const dashboardAuth = require('../middlewares/dashboardAuth');
 const { sendMessageSchema, chatSchema, resetSchema } = require('../utils/schemas');
 
 router.get('/', controller.getRoot);
@@ -16,5 +17,11 @@ router.get('/stats', apiKeyAuth, controller.getStats);
 router.post('/send', apiKeyAuth, validate(sendMessageSchema), controller.postSend);
 router.post('/chat', apiKeyAuth, validate(chatSchema), controller.postChat);
 router.post('/reset', apiKeyAuth, validate(resetSchema), controller.postReset);
+
+// Control Room Dashboard routes (supporting both /api/* and /* paths)
+router.get(['/api/status', '/status'], dashboardAuth, controller.getDashboardStatus);
+router.post(['/api/reconnect', '/reconnect'], dashboardAuth, controller.postReconnect);
+router.get(['/api/config', '/config'], dashboardAuth, controller.getConfig);
+router.put(['/api/config', '/config'], dashboardAuth, controller.putConfig);
 
 module.exports = router;

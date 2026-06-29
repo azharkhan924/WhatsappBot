@@ -87,6 +87,7 @@ const config = {
     rateLimitWindowMs: toInt(process.env.RATE_LIMIT_WINDOW_MS, 60000),
     rateLimitMaxRequests: toInt(process.env.RATE_LIMIT_MAX_REQUESTS, 30),
     apiKey: process.env.API_KEY || '',
+    dashboardKey: process.env.DASHBOARD_KEY || process.env.API_KEY || '',
   },
 
   logging: {

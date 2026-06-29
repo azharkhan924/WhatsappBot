@@ -1,7 +1,9 @@
 // server.js
-// Application entrypoint. Starts the Express REST server and the WhatsApp client,
+// Application entrypoint. Starts the Express REST server with Socket.IO support and the WhatsApp client,
 // and wires up graceful shutdown + global crash protection.
 
+const http = require('http');
+const { Server } = require('socket.io');
 const app = require('./app');
 const config = require('./config');
 const logger = require('./utils/logger');
@@ -14,8 +16,30 @@ async function start() {
   logger.info(`Environment: ${config.env}`);
   logger.info(`AI Provider: ${config.ai.provider}`);
 
-  httpServer = app.listen(config.port, () => {
-    logger.info(`HTTP server listening on port ${config.port}`);
+  httpServer = http.createServer(app);
+
+  const io = new Server(httpServer, {
+    cors: { origin: '*' },
+  });
+
+  io.use((socket, next) => {
+    const expectedKey = config.security.dashboardKey;
+    if (!expectedKey) return next();
+    const key = socket.handshake.auth?.dashboardKey;
+    if (key === expectedKey) return next();
+    return next(new Error('Unauthorized socket connection'));
+  });
+
+  io.on('connection', (socket) => {
+    logger.info('Control Room dashboard connected via WebSocket.');
+    socket.emit('state', whatsappService.getDashboardStatus());
+  });
+
+  whatsappService.setSocketIO(io);
+
+  httpServer.listen(config.port, () => {
+    logger.info(`HTTP & WebSocket server listening on port ${config.port}`);
+    logger.info(`Control Room Dashboard available at http://localhost:${config.port}/dashboard`);
   });
 
   try {

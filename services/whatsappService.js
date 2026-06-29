@@ -4,12 +4,14 @@
 
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
+const QR = require('qrcode');
 const path = require('path');
 
 const config = require('../config');
 const logger = require('../utils/logger');
 const conversationMemory = require('../memory/conversationMemory');
 const aiService = require('./aiService');
+const botConfigService = require('./botConfigService');
 const { handleCommand, isCommand } = require('./commandService');
 
 const SESSION_PATH = path.join(__dirname, '..', 'session');
@@ -42,8 +44,45 @@ const stats = {
 let client = null;
 let isReady = false;
 let lastQr = null;
+let lastQrDataUrl = null;
 let isReconnecting = false;
 let healthCheckInterval = null;
+
+let ioInstance = null;
+
+function setSocketIO(io) {
+  ioInstance = io;
+}
+
+function broadcastState() {
+  if (!ioInstance) return;
+  const status = getDashboardStatus();
+  ioInstance.emit('state', status);
+}
+
+function getDashboardStatus() {
+  if (isReady && client && client.info) {
+    const rawNum = client.info.wid ? client.info.wid.user : null;
+    return {
+      status: 'connected',
+      connectedNumber: rawNum,
+    };
+  }
+  if (lastQrDataUrl && !isReady) {
+    return {
+      status: 'qr',
+      qrDataUrl: lastQrDataUrl,
+    };
+  }
+  if (isReconnecting) {
+    return {
+      status: 'initializing',
+    };
+  }
+  return {
+    status: isReady ? 'connected' : 'disconnected',
+  };
+}
 
 // ── Heartbeat / Health-check ────────────────────────────────────────
 // After the Mac wakes from sleep the Puppeteer browser that
@@ -272,31 +311,44 @@ function createClient() {
 }
 
 function registerEventHandlers() {
-  client.on('qr', (qr) => {
+  client.on('qr', async (qr) => {
     lastQr = qr;
     logger.info('QR Generated. Scan it with WhatsApp (Linked Devices > Link a device).');
     qrcode.generate(qr, { small: true });
+    try {
+      lastQrDataUrl = await QR.toDataURL(qr);
+    } catch (err) {
+      logger.error(`Failed to generate QR data URL: ${err.message}`);
+    }
+    broadcastState();
   });
 
   client.on('authenticated', () => {
     logger.info('Authenticated successfully.');
+    broadcastState();
   });
 
   client.on('ready', () => {
     isReady = true;
     lastQr = null;
+    lastQrDataUrl = null;
     logger.info('WhatsApp client is Ready.');
     startHealthCheck();
+    broadcastState();
   });
 
   client.on('disconnected', async (reason) => {
     logger.info(`Disconnected event: ${reason}`);
+    isReady = false;
+    lastQrDataUrl = null;
+    broadcastState();
     stopHealthCheck();
     await destroyAndRecreateClient(`Disconnected: ${reason}`);
   });
 
   client.on('change_state', async (state) => {
     logger.info(`Connection state changed: ${state}`);
+    broadcastState();
     // CONFLICT = phone connected elsewhere; UNLAUNCHED = browser died
     if (state === 'CONFLICT' || state === 'UNLAUNCHED') {
       logger.warn(`Unhealthy state detected: ${state}. Triggering reconnect.`);
@@ -340,6 +392,25 @@ async function handleIncomingMessage(message) {
   const text = (message.body || '').trim();
 
   if (!text) return; // ignore non-text (media-only) messages for now
+
+  // Check dashboard bot config (botEnabled & whitelist)
+  const botCfg = botConfigService.getConfig();
+  if (!botCfg.botEnabled) {
+    logger.info(`Bot is disabled in control room. Skipping reply to ${userId}`);
+    return;
+  }
+
+  if (Array.isArray(botCfg.whitelist) && botCfg.whitelist.length > 0) {
+    const senderDigits = userId.replace(/[^0-9]/g, '');
+    const isWhitelisted = botCfg.whitelist.some((num) => {
+      const cleanNum = num.replace(/[^0-9]/g, '');
+      return senderDigits.endsWith(cleanNum) || cleanNum.endsWith(senderDigits);
+    });
+    if (!isWhitelisted) {
+      logger.info(`Sender ${userId} (${senderDigits}) is not on the whitelist. Skipping bot reply.`);
+      return;
+    }
+  }
 
   logger.info(`Incoming message from ${userId}: ${text}`);
 
@@ -447,9 +518,17 @@ function getStats() {
   };
 }
 
+async function reconnect() {
+  logger.info('Reconnect requested from Control Room.');
+  await destroyAndRecreateClient('Requested via dashboard reconnect endpoint');
+}
+
 module.exports = {
   initializeWhatsApp,
   sendMessage,
   getStatus,
   getStats,
+  setSocketIO,
+  getDashboardStatus,
+  reconnect,
 };

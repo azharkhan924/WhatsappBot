@@ -37,20 +37,16 @@ try {
   logger.warn(`Could not set up fallback providers: ${err.message}`);
 }
 
+const botConfigService = require('./botConfigService');
 const FALLBACK_REPLY = "Sorry, I'm unable to answer right now. Please try again later.";
-const SYSTEM_PROMPT_PATH = path.join(__dirname, '..', 'prompts', 'systemPrompt.txt');
-
-let cachedSystemPrompt = null;
 
 function loadSystemPrompt() {
-  if (cachedSystemPrompt) return cachedSystemPrompt;
-  try {
-    cachedSystemPrompt = fs.readFileSync(SYSTEM_PROMPT_PATH, 'utf-8').trim();
-  } catch (err) {
-    logger.error(`Failed to load system prompt, using default. ${err.message}`);
-    cachedSystemPrompt = 'You are a helpful WhatsApp assistant.';
+  const basePrompt = botConfigService.getSystemPrompt();
+  const cfg = botConfigService.getConfig();
+  if (cfg.holdingReply) {
+    return `${basePrompt}\n\n# Dynamic Holding Reply Instructions\nIf the user asks about meetings, money, personal commitments, or anything requiring personal confirmation, reply with: "${cfg.holdingReply}"`;
   }
-  return cachedSystemPrompt;
+  return basePrompt;
 }
 
 function sleep(ms) {

@@ -3,6 +3,7 @@
 
 const whatsappService = require('../services/whatsappService');
 const aiService = require('../services/aiService');
+const botConfigService = require('../services/botConfigService');
 const conversationMemory = require('../memory/conversationMemory');
 const provider = require('../providers');
 const logger = require('../utils/logger');
@@ -65,4 +66,42 @@ async function getStats(req, res) {
   res.json({ success: true, stats: whatsappService.getStats() });
 }
 
-module.exports = { getRoot, getHealth, postSend, postChat, postReset, getStats };
+// ── Control Room Dashboard Endpoints ──
+
+async function getDashboardStatus(req, res) {
+  const status = whatsappService.getDashboardStatus();
+  res.json(status);
+}
+
+async function postReconnect(req, res, next) {
+  try {
+    await whatsappService.reconnect();
+    res.json({ success: true, message: 'Reconnection triggered' });
+  } catch (err) {
+    logger.error(`postReconnect failed: ${err.message}`);
+    next(err);
+  }
+}
+
+async function getConfig(req, res) {
+  const cfg = botConfigService.getConfig();
+  res.json(cfg);
+}
+
+async function putConfig(req, res) {
+  const updated = botConfigService.updateConfig(req.body || {});
+  res.json(updated);
+}
+
+module.exports = {
+  getRoot,
+  getHealth,
+  postSend,
+  postChat,
+  postReset,
+  getStats,
+  getDashboardStatus,
+  postReconnect,
+  getConfig,
+  putConfig,
+};

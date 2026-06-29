@@ -81,6 +81,7 @@ AIProvider (abstract base)
    └── ClaudeProvider   (reserved for future)
 ```
 
+
 Switching providers requires changing **only** `AI_PROVIDER` in `.env` — no code changes.
 
 ---

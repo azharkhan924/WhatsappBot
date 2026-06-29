@@ -13,14 +13,14 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 
 const app = express();
 
-// Trust reverse proxies (required for express-rate-limit to work on Render)
+// Trust reverse proxies (required for express-rate-limit to work on Railway)
 app.set('trust proxy', 1);
 
-// Security headers
-app.use(helmet());
+// Security headers (disable CSP so CDN scripts & fonts load smoothly in dashboard)
+app.use(helmet({ contentSecurityPolicy: false }));
 
-// CORS
-app.use(cors());
+// CORS (allow all origins & credentials for cross-domain dashboard connections)
+app.use(cors({ origin: true, credentials: true }));
 
 // Gzip compression
 app.use(compression());
@@ -35,10 +35,11 @@ app.use(requestLogger);
 // Rate limiting on all API routes
 app.use(rateLimiter);
 
-// API routes (registered before static assets so GET / returns JSON, not the HTML status page)
+// API routes (registered before static assets so GET / returns JSON)
 app.use('/', routes);
 
-// Serve static public assets (e.g. a simple status page) under /static
+// Serve static public control room dashboard under /dashboard and /static
+app.use('/dashboard', express.static('public'));
 app.use('/static', express.static('public'));
 
 // 404 + centralized error handling
