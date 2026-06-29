@@ -11,6 +11,7 @@ const SYSTEM_PROMPT_FILE = path.join(__dirname, '..', 'prompts', 'systemPrompt.t
 
 const defaultConfig = {
   botEnabled: true,
+  whitelistEnabled: true,
   holdingReply: 'Yeh wala main personally dekh ke reply karunga, thoda wait karo',
   whitelist: [],
 };
@@ -79,6 +80,9 @@ function getConfig() {
 function updateConfig(updates) {
   if (typeof updates.botEnabled === 'boolean') {
     currentConfig.botEnabled = updates.botEnabled;
+  }
+  if (typeof updates.whitelistEnabled === 'boolean') {
+    currentConfig.whitelistEnabled = updates.whitelistEnabled;
   }
   if (typeof updates.holdingReply === 'string') {
     currentConfig.holdingReply = updates.holdingReply;

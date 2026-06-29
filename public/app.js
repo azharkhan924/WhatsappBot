@@ -189,6 +189,7 @@ function renderConfig(cfg) {
   $('prompt-editor').value = cfg.systemPrompt || '';
   updateCharCount();
   $('toggle-enabled').checked = !!cfg.botEnabled;
+  $('toggle-whitelist').checked = !!cfg.whitelistEnabled;
   $('holding-reply-input').value = cfg.holdingReply || '';
   renderWhitelist(cfg.whitelist || []);
 }
@@ -241,6 +242,21 @@ $('toggle-enabled').addEventListener('change', async (e) => {
     toast(botEnabled ? 'Bot is replying' : 'Bot is silent', botEnabled ? 'success' : '');
   } catch (err) {
     e.target.checked = !botEnabled; // revert on failure
+    toast('Could not update — check backend', 'error');
+  }
+});
+
+// ===== Whitelist enabled toggle =====
+$('toggle-whitelist').addEventListener('change', async (e) => {
+  const whitelistEnabled = e.target.checked;
+  try {
+    currentConfig = await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify({ whitelistEnabled }),
+    });
+    toast(whitelistEnabled ? 'Whitelist mode active' : 'Replying to everyone', whitelistEnabled ? 'success' : '');
+  } catch (err) {
+    e.target.checked = !whitelistEnabled; // revert on failure
     toast('Could not update — check backend', 'error');
   }
 });

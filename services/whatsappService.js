@@ -401,21 +401,34 @@ async function handleIncomingMessage(message) {
 
   if (!text) return; // ignore non-text (media-only) messages for now
 
-  // Check dashboard bot config (botEnabled & whitelist)
+  // Fetch actual contact details for precise phone number matching
+  let contactDigits = userId.replace(/[^0-9]/g, '');
+  try {
+    const contact = await message.getContact();
+    if (contact && (contact.number || (contact.id && contact.id.user))) {
+      contactDigits = (contact.number || contact.id.user).replace(/[^0-9]/g, '');
+    }
+  } catch (_) {}
+
+  // Check dashboard bot config (botEnabled & whitelistEnabled)
   const botCfg = botConfigService.getConfig();
   if (!botCfg.botEnabled) {
     logger.info(`Bot is disabled in control room. Skipping reply to ${userId}`);
     return;
   }
 
-  if (Array.isArray(botCfg.whitelist) && botCfg.whitelist.length > 0) {
-    const senderDigits = userId.replace(/[^0-9]/g, '');
+  if (botCfg.whitelistEnabled && Array.isArray(botCfg.whitelist) && botCfg.whitelist.length > 0) {
     const isWhitelisted = botCfg.whitelist.some((num) => {
       const cleanNum = num.replace(/[^0-9]/g, '');
-      return senderDigits.endsWith(cleanNum) || cleanNum.endsWith(senderDigits);
+      if (!cleanNum) return false;
+      if (contactDigits === cleanNum || userId.replace(/[^0-9]/g, '') === cleanNum) return true;
+      if (contactDigits.length >= 10 && cleanNum.length >= 10) {
+        if (contactDigits.slice(-10) === cleanNum.slice(-10)) return true;
+      }
+      return contactDigits.endsWith(cleanNum) || cleanNum.endsWith(contactDigits);
     });
     if (!isWhitelisted) {
-      logger.info(`Sender ${userId} (${senderDigits}) is not on the whitelist. Skipping bot reply.`);
+      logger.info(`Sender ${userId} (contact: ${contactDigits}) is not on the whitelist. Skipping bot reply.`);
       return;
     }
   }
