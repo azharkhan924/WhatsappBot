@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "WhatsApp AI Bot",
+    "description": "Postman collection for testing the WhatsApp AI Bot REST API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "apiKey", "value": "your_api_key_here" }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/"
+      }
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      }
+    },
+    {
+      "name": "Get Stats",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": "{{baseUrl}}/stats"
+      }
+    },
+    {
+      "name": "Send WhatsApp Message",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": "{{baseUrl}}/send",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"to\": \"919999999999\",\n  \"message\": \"Hello from the bot!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Chat with AI",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": "{{baseUrl}}/chat",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"test-user-1\",\n  \"message\": \"What is the capital of France?\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Reset Conversation",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "x-api-key", "value": "{{apiKey}}" }
+        ],
+        "url": "{{baseUrl}}/reset",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"test-user-1\"\n}"
+        }
+      }
+    }
+  ]
+}
