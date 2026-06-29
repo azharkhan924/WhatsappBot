@@ -37,8 +37,8 @@ async function start() {
 
   whatsappService.setSocketIO(io);
 
-  httpServer.listen(config.port, () => {
-    logger.info(`HTTP & WebSocket server listening on port ${config.port}`);
+  httpServer.listen(config.port, '0.0.0.0', () => {
+    logger.info(`HTTP & WebSocket server listening on port ${config.port} (0.0.0.0)`);
     logger.info(`Control Room Dashboard available at http://localhost:${config.port}/dashboard`);
   });
 

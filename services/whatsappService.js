@@ -296,6 +296,8 @@ function createClient() {
         ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
         : require('fs').existsSync('/usr/bin/chromium')
         ? { executablePath: '/usr/bin/chromium' }
+        : require('fs').existsSync('/usr/bin/chromium-browser')
+        ? { executablePath: '/usr/bin/chromium-browser' }
         : {}),
       args: [
         '--no-sandbox',
@@ -305,6 +307,7 @@ function createClient() {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
+        '--single-process',
         '--disable-features=IsolateOrigins,site-per-process',
         '--disable-site-isolation-trials',
       ],
