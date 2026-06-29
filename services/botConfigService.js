@@ -29,6 +29,7 @@ function initConfig() {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
       const parsed = JSON.parse(data);
       currentConfig = { ...defaultConfig, ...parsed };
+      saveConfigFile();
     } else {
       saveConfigFile();
     }

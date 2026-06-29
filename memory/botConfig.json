@@ -1,5 +1,6 @@
 {
-  "botEnabled": false,
+  "botEnabled": true,
+  "whitelistEnabled": false,
   "holdingReply": "Yeh wala main personally dekh ke reply karunga, thoda wait karo",
   "whitelist": []
 }

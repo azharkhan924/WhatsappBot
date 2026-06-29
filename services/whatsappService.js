@@ -417,9 +417,15 @@ async function handleIncomingMessage(message) {
     return;
   }
 
-  if (botCfg.whitelistEnabled && Array.isArray(botCfg.whitelist) && botCfg.whitelist.length > 0) {
-    const isWhitelisted = botCfg.whitelist.some((num) => {
-      const cleanNum = num.replace(/[^0-9]/g, '');
+  if (botCfg.whitelistEnabled) {
+    const whitelist = Array.isArray(botCfg.whitelist) ? botCfg.whitelist : [];
+    if (whitelist.length === 0) {
+      logger.info(`Whitelist mode active but whitelist is empty. Skipping bot reply to ${userId}`);
+      return;
+    }
+
+    const isWhitelisted = whitelist.some((num) => {
+      const cleanNum = String(num).replace(/[^0-9]/g, '');
       if (!cleanNum) return false;
       if (contactDigits === cleanNum || userId.replace(/[^0-9]/g, '') === cleanNum) return true;
       if (contactDigits.length >= 10 && cleanNum.length >= 10) {
@@ -427,6 +433,7 @@ async function handleIncomingMessage(message) {
       }
       return contactDigits.endsWith(cleanNum) || cleanNum.endsWith(contactDigits);
     });
+
     if (!isWhitelisted) {
       logger.info(`Sender ${userId} (contact: ${contactDigits}) is not on the whitelist. Skipping bot reply.`);
       return;
