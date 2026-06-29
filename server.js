@@ -42,6 +42,17 @@ async function start() {
     logger.info(`Control Room Dashboard available at http://localhost:${config.port}/dashboard`);
   });
 
+  if (Number(config.port) !== 3000) {
+    try {
+      const fallbackServer = http.createServer(app);
+      fallbackServer.listen(3000, '0.0.0.0', () => {
+        logger.info(`Fallback server listening on port 3000 (0.0.0.0)`);
+      });
+    } catch (e) {
+      logger.warn(`Could not start fallback listener on 3000: ${e.message}`);
+    }
+  }
+
   try {
     await whatsappService.initializeWhatsApp();
   } catch (err) {
