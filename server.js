@@ -53,12 +53,11 @@ async function start() {
     }
   }
 
-  try {
-    await whatsappService.initializeWhatsApp();
-  } catch (err) {
+  // Initialize WhatsApp in background so HTTP/WebSocket endpoints respond instantly
+  whatsappService.initializeWhatsApp().catch((err) => {
     logger.error(`Failed to initialize WhatsApp client: ${err.message}`);
     logger.info('HTTP server will keep running; WhatsApp will retry via reconnect logic.');
-  }
+  });
 }
 
 function shutdown(signal) {
