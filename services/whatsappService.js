@@ -292,6 +292,11 @@ function createClient() {
     }),
     puppeteer: {
       headless: true,
+      ...(process.env.PUPPETEER_EXECUTABLE_PATH
+        ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
+        : require('fs').existsSync('/usr/bin/chromium')
+        ? { executablePath: '/usr/bin/chromium' }
+        : {}),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
