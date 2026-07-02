@@ -192,6 +192,12 @@ export const ControlsScreen: React.FC = () => {
           )}
         </TouchableOpacity>
       </View>
+
+      <View style={{ marginTop: 16, alignItems: 'center', paddingBottom: 16 }}>
+        <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>
+          ⚡ Designed & Developed by <Text style={{ color: colors.primary, fontWeight: '700' }}>Azhar Khan</Text>
+        </Text>
+      </View>
     </ScrollView>
   );
 };

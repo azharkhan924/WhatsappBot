@@ -177,6 +177,13 @@ export const LiveStatusScreen: React.FC = () => {
         <LogOut size={18} color={colors.danger} />
         <Text style={styles.disconnectText}>Disconnect Server</Text>
       </TouchableOpacity>
+
+      <View style={{ marginTop: 28, alignItems: 'center', paddingBottom: 16 }}>
+        <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>
+          ⚡ Designed & Developed by <Text style={{ color: colors.primary, fontWeight: '700' }}>Azhar Khan</Text>
+        </Text>
+        <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>AppLand AI Edition • Web & Mobile App</Text>
+      </View>
     </ScrollView>
   );
 };

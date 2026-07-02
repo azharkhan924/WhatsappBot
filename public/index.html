@@ -421,70 +421,75 @@
   .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; margin-top: 18px; }
   .auth-tab { flex: 1; padding: 8px 12px; background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; cursor: pointer; text-align: center; font-size: 13px; font-weight: 500; transition: all 0.2s; }
   .auth-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-</style>
-</head>
+</style></head>
 <body>
 
-<!-- ===== Setup gate: ask for backend URL + authentication once ===== -->
+<!-- ===== Setup gate: AppLand Hero Admin Login ===== -->
 <div class="gate" id="gate">
-  <div class="title-block" style="margin-bottom:20px;">
-    <p class="eyebrow">// first time setup</p>
-    <h1>Connect to your backend</h1>
+  <div style="text-align:center; margin-bottom:24px;">
+    <img src="favicon.png" alt="WhatsApp AI Logo" style="width:72px; height:72px; border-radius:18px; box-shadow:0 0 25px rgba(34,197,94,0.4); margin-bottom:12px;">
+    <p class="eyebrow" style="color:#22c55e; letter-spacing:2px;">// APPLAND AI EDITION</p>
+    <h1 style="font-size:28px; background:linear-gradient(135deg, #fff 0%, #a7f3d0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Autonomous Control Room</h1>
+    <p style="color:var(--text-secondary); font-size:13px; margin-top:4px;">Secure Gateway • Developed by Azhar Khan</p>
   </div>
-  <div class="card">
-    <h2>Backend URL</h2>
-    <input type="text" id="gate-url" placeholder="https://your-bot-backend.up.railway.app" autocomplete="off">
+  <div class="card" style="box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.3);">
+    <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.25); padding:10px 14px; border-radius:8px; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+      <span style="width:8px; height:8px; background:#22c55e; border-radius:50%; box-shadow:0 0 8px #22c55e;"></span>
+      <span style="font-size:12px; color:#a7f3d0; font-weight:600;">Dedicated Server: whatsapp-bot.up.railway.app</span>
+    </div>
     
-    <div class="auth-tabs">
+    <!-- Hardcoded backend URL (hidden from UI so app.js can still read it if needed) -->
+    <input type="hidden" id="gate-url" value="https://whatsapp-bot.up.railway.app">
+
+    <div class="auth-tabs" style="display:none;">
       <div class="auth-tab active" id="tab-admin">👤 Admin Login</div>
       <div class="auth-tab" id="tab-phone">📱 WhatsApp Phone</div>
       <div class="auth-tab" id="tab-key">🔑 Dashboard Key</div>
     </div>
 
-    <!-- Admin Login Section -->
+    <!-- Admin Login Section (Only Option Shown) -->
     <div id="section-admin">
-      <h2>Admin Username</h2>
-      <input type="text" id="gate-admin-user" value="admin" placeholder="Username (default: admin)" autocomplete="off">
-      <h2 style="margin-top:12px;">Admin Password</h2>
-      <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)" autocomplete="off">
+      <h2 style="color:#e2e8f0;">Admin Username</h2>
+      <input type="text" id="gate-admin-user" value="admin" placeholder="Username (default: admin)" autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
+      <h2 style="margin-top:16px; color:#e2e8f0;">Admin Password</h2>
+      <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)" autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
       <div class="gate-error" id="gate-error-admin"></div>
-      <button class="primary full" id="gate-admin-submit" style="margin-top:12px;">Admin Login</button>
+      <button class="primary full" id="gate-admin-submit" style="margin-top:20px; height:46px; font-size:15px; font-weight:700; box-shadow:0 4px 15px rgba(34,197,94,0.4);">Unlock Dashboard →</button>
     </div>
 
-    <!-- Phone Login Section -->
+    <!-- Hidden Phone/Key sections to preserve app.js compatibility -->
     <div id="section-phone" style="display:none;">
-      <h2>Your Phone Number</h2>
-      <input type="tel" id="gate-phone" placeholder="e.g. +14155551234" autocomplete="off">
-      <div id="otp-group" style="display:none; margin-top:12px;">
-        <h2>6-Digit Verification Code</h2>
-        <input type="text" id="gate-otp" placeholder="Enter code sent via WhatsApp" autocomplete="off" maxlength="6">
-      </div>
-      <div class="gate-error" id="gate-error-phone"></div>
-      <button class="primary full" id="gate-send-otp" style="margin-top:12px;">Send Verification Code</button>
-      <button class="primary full" id="gate-verify-otp" style="margin-top:12px; display:none;">Verify & Connect</button>
+      <input type="tel" id="gate-phone">
+      <input type="text" id="gate-otp">
+      <div id="gate-error-phone"></div>
+      <button id="gate-send-otp"></button>
+      <button id="gate-verify-otp"></button>
     </div>
-
-    <!-- Key Login Section -->
     <div id="section-key" style="display:none;">
-      <h2>Dashboard key</h2>
-      <input type="password" id="gate-key" placeholder="the DASHBOARD_KEY you set on the server" autocomplete="off">
-      <div class="gate-error" id="gate-error"></div>
-      <button class="primary full" id="gate-submit" style="margin-top:12px;">Connect</button>
+      <input type="password" id="gate-key">
+      <div id="gate-error"></div>
+      <button id="gate-submit"></button>
     </div>
+  </div>
+  <div style="text-align:center; margin-top:20px; font-size:12px; color:var(--text-muted);">
+    ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> on Web & Mobile App
   </div>
 </div>
 
 <!-- ===== Main dashboard ===== -->
 <div class="wrap hidden" id="dashboard">
-  <header>
-    <div class="title-block">
-      <p class="eyebrow">// control room</p>
-      <h1>Azhar's WhatsApp Bot</h1>
+  <header style="border-bottom:1px solid rgba(34,197,94,0.2); padding-bottom:16px; margin-bottom:24px;">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <img src="favicon.png" alt="Icon" style="width:42px; height:42px; border-radius:10px; box-shadow:0 0 12px rgba(34,197,94,0.3);">
+      <div class="title-block">
+        <p class="eyebrow" style="color:#22c55e;">// autonomous ai gateway</p>
+        <h1 style="font-size:22px; background:linear-gradient(90deg, #fff, #86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WhatsApp Control Room</h1>
+      </div>
     </div>
     <div class="global-status">
       <span class="dot off" id="header-dot"></span>
       <span id="header-status">checking…</span>
-      <button id="disconnect-btn" style="padding:3px 8px; font-size:11px; margin-left:6px; background:transparent; border:1px solid var(--border); color:var(--text-muted); cursor:pointer;">Disconnect</button>
+      <button id="disconnect-btn" style="padding:5px 12px; font-size:11px; margin-left:10px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:6px; font-weight:600; cursor:pointer;">Logout</button>
     </div>
   </header>
 
@@ -492,8 +497,8 @@
     <!-- LEFT COLUMN -->
     <div style="display:flex; flex-direction:column; gap:20px;">
 
-      <div class="card">
-        <h2>Connection</h2>
+      <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
+        <h2 style="color:#86efac;">WhatsApp Gateway Connection</h2>
         <div class="qr-stage" id="qr-stage">
           <div class="qr-placeholder" id="qr-placeholder">
             waiting for backend<span class="cursor"></span>
@@ -502,43 +507,22 @@
         <div class="conn-meta" id="conn-meta"></div>
 
         <div id="qr-pairing-section" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
-          <div style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">📱 OR LINK WITH PHONE NUMBER (NO CAMERA NEEDED)</div>
+          <div style="font-size:12px; font-weight:600; color:#86efac; margin-bottom:8px;">📱 OR LINK WITH PHONE NUMBER (NO CAMERA NEEDED)</div>
           <div style="display:flex; gap:8px;">
             <input type="tel" id="pairing-phone" placeholder="e.g. +14155551234" autocomplete="off" style="flex:1; margin:0;">
             <button class="primary" id="pairing-btn" style="padding:0 14px; white-space:nowrap;">Get Code</button>
           </div>
           <div id="pairing-result" style="display:none; margin-top:10px; background:var(--input-bg); border:1px dashed var(--primary); border-radius:8px; padding:12px; text-align:center;">
-            <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Enter this code on your phone (WhatsApp > Linked Devices > Link with phone number):</div>
-            <div id="pairing-code-display" style="font-size:20px; font-weight:800; letter-spacing:3px; color:var(--primary);"></div>
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Enter on phone (Linked Devices → Link with phone number):</div>
+            <div id="pairing-code-display" style="font-size:22px; font-weight:800; color:var(--primary); letter-spacing:3px;"></div>
           </div>
-          <div class="gate-error" id="pairing-error" style="margin-top:8px;"></div>
+          <div class="gate-error" id="pairing-error" style="margin-top:6px;"></div>
         </div>
-
-        <button class="full" id="reconnect-btn" style="margin-top:12px;">Generate new QR</button>
       </div>
 
       <div class="card">
-        <h2>Bot status</h2>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-label">Bot replies</div>
-            <div class="toggle-sub">Turn off to go fully silent</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-enabled">
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div class="toggle-row">
-          <div>
-            <div class="toggle-label">Whitelist only</div>
-            <div class="toggle-sub">Turn off to reply to everyone</div>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="toggle-whitelist">
-            <span class="slider"></span>
-          </label>
-        </div>
+        <h2>Live Event Stream</h2>
+        <div class="logs" id="logs"></div>
       </div>
 
     </div>
@@ -546,9 +530,9 @@
     <!-- RIGHT COLUMN -->
     <div style="display:flex; flex-direction:column; gap:20px;">
 
-      <div class="card">
-        <h2>System prompt</h2>
-        <textarea id="prompt-editor" spellcheck="false" placeholder="Loading…"></textarea>
+      <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
+        <h2 style="color:#86efac;">AI Brain Prompt</h2>
+        <textarea id="prompt-editor" spellcheck="false" placeholder="Loading…" style="border:1px solid rgba(34,197,94,0.3);"></textarea>
         <div class="prompt-footer">
           <span class="char-count" id="char-count">0 chars</span>
           <div style="display:flex; align-items:center; gap:14px;">
@@ -559,7 +543,7 @@
       </div>
 
       <div class="card">
-        <h2>Holding reply</h2>
+        <h2>Holding Reply</h2>
         <div class="toggle-sub">Sent when something needs your personal input — meetings, money, anything you'd want to handle yourself.</div>
         <input type="text" class="holding-input" id="holding-reply-input" placeholder="Yeh wala main personally dekh ke reply karunga, thoda wait karo">
         <div class="prompt-footer">
@@ -569,7 +553,7 @@
       </div>
 
       <div class="card">
-        <h2>Whitelist</h2>
+        <h2>Security Whitelist</h2>
         <div class="whitelist-input-row">
           <input type="text" id="whitelist-input" placeholder="919876543210 (with country code, no +)">
           <button class="primary" id="whitelist-add-btn">Add</button>
@@ -580,6 +564,10 @@
 
     </div>
   </div>
+
+  <footer style="margin-top:36px; padding:20px 0; border-top:1px solid rgba(255,255,255,0.08); text-align:center; font-size:13px; color:var(--text-secondary);">
+    ⚡ AppLand Edition — Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> on Web & Mobile App • Powered by Autonomous AI
+  </footer>
 </div>
 
 <div class="toast" id="toast"></div>
