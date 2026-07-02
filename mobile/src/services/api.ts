@@ -119,6 +119,18 @@ class ApiService {
     return data;
   }
 
+  async requestPairingCode(phone: string): Promise<{ success: boolean; pairingCode: string }> {
+    return this.fetchApi('/api/pairing-code', {
+      method: 'POST',
+      body: JSON.stringify({ phone }),
+    }).catch(() =>
+      this.fetchApi('/pairing-code', {
+        method: 'POST',
+        body: JSON.stringify({ phone }),
+      })
+    );
+  }
+
   async testConnection(url: string, key: string): Promise<WhatsAppState> {
     const cleanUrl = url.replace(/\/+$/, '').replace(/\/(dashboard|static)$/i, '');
     let res = await fetch(`${cleanUrl}/api/status`, {

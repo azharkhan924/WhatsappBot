@@ -463,6 +463,48 @@ $('disconnect-btn')?.addEventListener('click', () => {
   if (socket) socket.disconnect();
   clearInterval(pollTimer);
   showGate();
+// ===== Pairing Code (Link with phone number) =====
+$('pairing-btn')?.addEventListener('click', async () => {
+  const phone = $('pairing-phone').value.trim();
+  $('pairing-error').textContent = '';
+  if (!phone) {
+    $('pairing-error').textContent = 'Enter your WhatsApp phone number.';
+    return;
+  }
+  $('pairing-btn').disabled = true;
+  $('pairing-btn').textContent = 'Requesting…';
+  try {
+    let res = await fetch(`${API_BASE}/api/pairing-code`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+      body: JSON.stringify({ phone }),
+    });
+    if (res.status === 404) {
+      res = await fetch(`${API_BASE}/pairing-code`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-dashboard-key': DASHBOARD_KEY,
+        },
+        body: JSON.stringify({ phone }),
+      });
+    }
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || data.message || 'Failed to get pairing code.');
+    }
+    $('pairing-code-display').textContent = data.pairingCode;
+    $('pairing-result').style.display = 'block';
+    toast('Pairing code generated!', 'success');
+  } catch (err) {
+    $('pairing-error').textContent = err.message;
+  } finally {
+    $('pairing-btn').disabled = false;
+    $('pairing-btn').textContent = 'Get Code';
+  }
 });
 
 // ===== Init =====

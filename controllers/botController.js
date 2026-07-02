@@ -114,6 +114,16 @@ async function postVerifyOtp(req, res, next) {
   }
 }
 
+async function postPairingCode(req, res, next) {
+  try {
+    const { phone } = req.body || {};
+    const code = await whatsappService.requestPairingCode(phone);
+    res.json({ success: true, pairingCode: code });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getRoot,
   getHealth,
@@ -127,4 +137,5 @@ module.exports = {
   putConfig,
   postRequestOtp,
   postVerifyOtp,
+  postPairingCode,
 };

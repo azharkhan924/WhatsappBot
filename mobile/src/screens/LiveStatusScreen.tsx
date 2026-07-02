@@ -1,12 +1,37 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView, Alert, TextInput } from 'react-native';
 import { colors } from '../theme/colors';
 import { useApp } from '../context/AppContext';
-import { Radio, RefreshCw, LogOut, CheckCircle2, AlertTriangle, QrCode } from 'lucide-react-native';
+import { apiService } from '../services/api';
+import { Radio, RefreshCw, LogOut, CheckCircle2, AlertTriangle, QrCode, Phone } from 'lucide-react-native';
 
 export const LiveStatusScreen: React.FC = () => {
   const { whatsappState, reconnectWhatsApp, disconnect, apiBaseUrl } = useApp();
   const [requesting, setRequesting] = useState(false);
+  const [pairingPhone, setPairingPhone] = useState('');
+  const [pairingCode, setPairingCode] = useState('');
+  const [pairingLoading, setPairingLoading] = useState(false);
+  const [pairingError, setPairingError] = useState('');
+
+  const handleGetPairingCode = async () => {
+    setPairingError('');
+    const cleanPhone = pairingPhone.trim();
+    if (!cleanPhone) {
+      setPairingError('Please enter your WhatsApp phone number.');
+      return;
+    }
+    setPairingLoading(true);
+    try {
+      const res = await apiService.requestPairingCode(cleanPhone);
+      if (res && res.pairingCode) {
+        setPairingCode(res.pairingCode);
+      }
+    } catch (err: any) {
+      setPairingError(err.message || 'Failed to get pairing code.');
+    } finally {
+      setPairingLoading(false);
+    }
+  };
 
   const handleReconnect = async () => {
     setRequesting(true);
@@ -84,6 +109,39 @@ export const LiveStatusScreen: React.FC = () => {
               <Text style={styles.qrInstruction}>
                 Open WhatsApp on your phone → Settings → Linked Devices → Link a Device.
               </Text>
+
+              <View style={styles.pairingDivider}>
+                <Text style={styles.pairingDividerText}>📱 OR LINK WITH PHONE NUMBER</Text>
+                <View style={styles.pairingRow}>
+                  <TextInput
+                    style={styles.pairingInput}
+                    placeholder="e.g. +14155551234"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="phone-pad"
+                    value={pairingPhone}
+                    onChangeText={setPairingPhone}
+                  />
+                  <TouchableOpacity
+                    style={styles.pairingButton}
+                    onPress={handleGetPairingCode}
+                    disabled={pairingLoading}
+                  >
+                    {pairingLoading ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.pairingButtonText}>Get Code</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {pairingCode ? (
+                  <View style={styles.pairingCodeBox}>
+                    <Text style={styles.pairingCodeLabel}>Enter on phone (Linked Devices → Link with phone number):</Text>
+                    <Text style={styles.pairingCodeValue}>{pairingCode}</Text>
+                  </View>
+                ) : null}
+                {pairingError ? <Text style={styles.pairingError}>{pairingError}</Text> : null}
+              </View>
             </View>
           ) : (
             <View style={styles.placeholderBox}>
@@ -286,5 +344,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  pairingDivider: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
+    width: '100%',
+  },
+  pairingDividerText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    marginBottom: 8,
+  },
+  pairingRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pairingInput: {
+    flex: 1,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 44,
+    color: colors.text,
+  },
+  pairingButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pairingButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  pairingCodeBox: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  pairingCodeLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  pairingCodeValue: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 4,
+  },
+  pairingError: {
+    color: colors.danger,
+    fontSize: 12,
+    marginTop: 6,
   },
 });

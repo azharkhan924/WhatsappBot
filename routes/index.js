@@ -28,4 +28,7 @@ router.put(['/api/config', '/config'], dashboardAuth, controller.putConfig);
 router.post(['/api/auth/request-otp', '/auth/request-otp'], controller.postRequestOtp);
 router.post(['/api/auth/verify-otp', '/auth/verify-otp'], controller.postVerifyOtp);
 
+// WhatsApp Pairing Code route
+router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.postPairingCode);
+
 module.exports = router;

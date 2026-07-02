@@ -489,6 +489,20 @@
           </div>
         </div>
         <div class="conn-meta" id="conn-meta"></div>
+
+        <div id="qr-pairing-section" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+          <div style="font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">📱 OR LINK WITH PHONE NUMBER (NO CAMERA NEEDED)</div>
+          <div style="display:flex; gap:8px;">
+            <input type="tel" id="pairing-phone" placeholder="e.g. +14155551234" autocomplete="off" style="flex:1; margin:0;">
+            <button class="primary" id="pairing-btn" style="padding:0 14px; white-space:nowrap;">Get Code</button>
+          </div>
+          <div id="pairing-result" style="display:none; margin-top:10px; background:var(--input-bg); border:1px dashed var(--primary); border-radius:8px; padding:12px; text-align:center;">
+            <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Enter this code on your phone (WhatsApp > Linked Devices > Link with phone number):</div>
+            <div id="pairing-code-display" style="font-size:20px; font-weight:800; letter-spacing:3px; color:var(--primary);"></div>
+          </div>
+          <div class="gate-error" id="pairing-error" style="margin-top:8px;"></div>
+        </div>
+
         <button class="full" id="reconnect-btn" style="margin-top:12px;">Generate new QR</button>
       </div>
 

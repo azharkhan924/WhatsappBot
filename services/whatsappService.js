@@ -551,6 +551,19 @@ async function reconnect() {
   await destroyAndRecreateClient('Requested via dashboard reconnect endpoint');
 }
 
+async function requestPairingCode(rawPhone) {
+  if (!client) {
+    throw new Error('WhatsApp client is not initialized yet.');
+  }
+  const phone = String(rawPhone || '').replace(/[^0-9]/g, '');
+  if (!phone || phone.length < 10) {
+    throw new Error('Please enter a valid phone number with country code (e.g. 14155551234).');
+  }
+  logger.info(`Requesting WhatsApp pairing code for ${phone}...`);
+  const code = await client.requestPairingCode(phone);
+  return code;
+}
+
 module.exports = {
   initializeWhatsApp,
   sendMessage,
@@ -559,4 +572,5 @@ module.exports = {
   setSocketIO,
   getDashboardStatus,
   reconnect,
+  requestPairingCode,
 };
