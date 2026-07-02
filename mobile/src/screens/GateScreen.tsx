@@ -1,36 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { colors } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { apiService } from '../services/api';
-import { ArrowRight, Lock, User, CheckCircle2 } from 'lucide-react-native';
+import { ArrowRight, Lock, User, Globe } from 'lucide-react-native';
 
 export const GateScreen: React.FC = () => {
-  const { connect, isLoading: contextLoading } = useApp();
-  const url = 'https://whatsapp-bot.up.railway.app';
+  const { connect, isLoading: contextLoading, apiBaseUrl } = useApp();
+  const [url, setUrl] = useState('');
   const [adminUser, setAdminUser] = useState('admin');
   const [adminPass, setAdminPass] = useState('admin123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState('');
 
+  useEffect(() => {
+    if (apiBaseUrl) {
+      setUrl(apiBaseUrl);
+    } else {
+      apiService.loadCredentials().then((creds) => {
+        if (creds && creds.apiBaseUrl) {
+          setUrl(creds.apiBaseUrl);
+        } else {
+          setUrl('http://localhost:3000');
+        }
+      }).catch(() => {
+        setUrl('http://localhost:3000');
+      });
+    }
+  }, [apiBaseUrl]);
+
   const handleAdminLogin = async () => {
     setError('');
+    let cleanUrl = url.trim();
     const cleanUser = adminUser.trim();
     const cleanPass = adminPass.trim();
 
-    if (!cleanUser || !cleanPass) {
-      setError('Username and Password are required.');
+    if (!cleanUrl || !cleanUser || !cleanPass) {
+      setError('Server URL, Username, and Password are required.');
       return;
     }
 
-    setLoading('Logging in...');
+    if (!/^https?:\/\//i.test(cleanUrl)) {
+      cleanUrl = 'http://' + cleanUrl;
+    }
+
+    setLoading('Connecting to server...');
     try {
-      const result = await apiService.adminLogin(url, cleanUser, cleanPass);
+      const result = await apiService.adminLogin(cleanUrl, cleanUser, cleanPass);
       if (result && result.dashboardKey) {
-        await connect(url, result.dashboardKey);
+        await connect(cleanUrl, result.dashboardKey);
       }
     } catch (err: any) {
-      setError(err.message || 'Admin login failed. Invalid username or password.');
+      setError(err.message || 'Admin login failed. Verify Server URL and credentials.');
     } finally {
       setLoading('');
     }
@@ -51,19 +72,28 @@ export const GateScreen: React.FC = () => {
             resizeMode="cover"
           />
           <View style={styles.badgeRow}>
-            <Text style={styles.badgeText}>// APPLAND AI EDITION</Text>
+            <Text style={styles.badgeText}>// SECURE GATEWAY</Text>
           </View>
-          <Text style={styles.title}>Autonomous Control Room</Text>
-          <Text style={styles.subtitle}>Secure Admin Gateway • Developed by Azhar Khan</Text>
+          <Text style={styles.title}>WhatsApp AI Assistant</Text>
+          <Text style={styles.subtitle}>Professional Autonomous AI Engine • Developed by Azhar Khan</Text>
         </View>
 
         <View style={styles.card}>
-          <View style={styles.serverNotice}>
-            <CheckCircle2 size={16} color={colors.primary} />
-            <Text style={styles.serverNoticeText}>Server: whatsapp-bot.up.railway.app</Text>
+          <Text style={styles.label}>Server Endpoint URL</Text>
+          <View style={styles.inputContainer}>
+            <Globe size={20} color={colors.textMuted} style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. http://192.168.1.5:3000 or cloud URL"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              keyboardType="url"
+              value={url}
+              onChangeText={setUrl}
+            />
           </View>
 
-          <Text style={styles.label}>Admin Username</Text>
+          <Text style={[styles.label, { marginTop: 16 }]}>Admin Username</Text>
           <View style={styles.inputContainer}>
             <User size={20} color={colors.textMuted} style={styles.inputIcon} />
             <TextInput
@@ -101,7 +131,7 @@ export const GateScreen: React.FC = () => {
               <ActivityIndicator color="#ffffff" />
             ) : (
               <>
-                <Text style={styles.buttonText}>Unlock Dashboard</Text>
+                <Text style={styles.buttonText}>Unlock Assistant</Text>
                 <ArrowRight size={20} color="#ffffff" style={{ marginLeft: 8 }} />
               </>
             )}
@@ -110,7 +140,7 @@ export const GateScreen: React.FC = () => {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            ⚡ Designed & Developed by <Text style={{ color: colors.primary, fontWeight: '700' }}>Azhar Khan</Text> on Web & Mobile App
+            ⚡ Designed & Developed by <Text style={{ color: colors.primary, fontWeight: '700' }}>Azhar Khan</Text> — Professional WhatsApp AI Assistant
           </Text>
         </View>
       </ScrollView>

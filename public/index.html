@@ -424,22 +424,18 @@
 </style></head>
 <body>
 
-<!-- ===== Setup gate: AppLand Hero Admin Login ===== -->
+<!-- ===== Setup gate: Professional Admin Login ===== -->
 <div class="gate" id="gate">
   <div style="text-align:center; margin-bottom:24px;">
     <img src="favicon.png" alt="WhatsApp AI Logo" style="width:72px; height:72px; border-radius:18px; box-shadow:0 0 25px rgba(34,197,94,0.4); margin-bottom:12px;">
-    <p class="eyebrow" style="color:#22c55e; letter-spacing:2px;">// APPLAND AI EDITION</p>
-    <h1 style="font-size:28px; background:linear-gradient(135deg, #fff 0%, #a7f3d0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">Autonomous Control Room</h1>
-    <p style="color:var(--text-secondary); font-size:13px; margin-top:4px;">Secure Gateway • Developed by Azhar Khan</p>
+    <p class="eyebrow" style="color:#22c55e; letter-spacing:2px;">// SECURE GATEWAY</p>
+    <h1 style="font-size:28px; background:linear-gradient(135deg, #fff 0%, #a7f3d0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WhatsApp AI Assistant</h1>
+    <p style="color:var(--text-secondary); font-size:13px; margin-top:4px;">Professional AI Engine • Developed by Azhar Khan</p>
   </div>
   <div class="card" style="box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.3);">
-    <div style="background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.25); padding:10px 14px; border-radius:8px; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
-      <span style="width:8px; height:8px; background:#22c55e; border-radius:50%; box-shadow:0 0 8px #22c55e;"></span>
-      <span style="font-size:12px; color:#a7f3d0; font-weight:600;">Dedicated Server: whatsapp-bot.up.railway.app</span>
-    </div>
     
-    <!-- Hardcoded backend URL (hidden from UI so app.js can still read it if needed) -->
-    <input type="hidden" id="gate-url" value="https://whatsapp-bot.up.railway.app">
+    <!-- Empty gate-url ensures app.js automatically connects to the exact domain hosting the web dashboard -->
+    <input type="hidden" id="gate-url" value="">
 
     <div class="auth-tabs" style="display:none;">
       <div class="auth-tab active" id="tab-admin">👤 Admin Login</div>
@@ -454,7 +450,7 @@
       <h2 style="margin-top:16px; color:#e2e8f0;">Admin Password</h2>
       <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)" autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
       <div class="gate-error" id="gate-error-admin"></div>
-      <button class="primary full" id="gate-admin-submit" style="margin-top:20px; height:46px; font-size:15px; font-weight:700; box-shadow:0 4px 15px rgba(34,197,94,0.4);">Unlock Dashboard →</button>
+      <button class="primary full" id="gate-admin-submit" style="margin-top:20px; height:46px; font-size:15px; font-weight:700; box-shadow:0 4px 15px rgba(34,197,94,0.4);">Unlock Assistant →</button>
     </div>
 
     <!-- Hidden Phone/Key sections to preserve app.js compatibility -->
@@ -472,7 +468,7 @@
     </div>
   </div>
   <div style="text-align:center; margin-top:20px; font-size:12px; color:var(--text-muted);">
-    ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> on Web & Mobile App
+    ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant
   </div>
 </div>
 
@@ -482,8 +478,8 @@
     <div style="display:flex; align-items:center; gap:14px;">
       <img src="favicon.png" alt="Icon" style="width:42px; height:42px; border-radius:10px; box-shadow:0 0 12px rgba(34,197,94,0.3);">
       <div class="title-block">
-        <p class="eyebrow" style="color:#22c55e;">// autonomous ai gateway</p>
-        <h1 style="font-size:22px; background:linear-gradient(90deg, #fff, #86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WhatsApp Control Room</h1>
+        <p class="eyebrow" style="color:#22c55e;">// autonomous ai engine</p>
+        <h1 style="font-size:22px; background:linear-gradient(90deg, #fff, #86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WhatsApp AI Assistant</h1>
       </div>
     </div>
     <div class="global-status">
@@ -566,7 +562,7 @@
   </div>
 
   <footer style="margin-top:36px; padding:20px 0; border-top:1px solid rgba(255,255,255,0.08); text-align:center; font-size:13px; color:var(--text-secondary);">
-    ⚡ AppLand Edition — Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> on Web & Mobile App • Powered by Autonomous AI
+    ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant • Powered by Autonomous AI
   </footer>
 </div>
 

@@ -23,7 +23,7 @@ const MainNavigator: React.FC = () => {
     return (
       <View style={styles.loadingScreen}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Connecting to Control Room...</Text>
+        <Text style={styles.loadingText}>Connecting to WhatsApp AI Assistant...</Text>
       </View>
     );
   }

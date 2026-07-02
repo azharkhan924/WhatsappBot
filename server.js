@@ -31,7 +31,7 @@ async function start() {
   });
 
   io.on('connection', (socket) => {
-    logger.info('Control Room dashboard connected via WebSocket.');
+    logger.info('WhatsApp AI Assistant dashboard connected via WebSocket.');
     socket.emit('state', whatsappService.getDashboardStatus());
   });
 
@@ -39,7 +39,7 @@ async function start() {
 
   httpServer.listen(config.port, '0.0.0.0', () => {
     logger.info(`HTTP & WebSocket server listening on port ${config.port} (0.0.0.0)`);
-    logger.info(`Control Room Dashboard available at http://localhost:${config.port}/dashboard`);
+    logger.info(`WhatsApp AI Assistant Dashboard available at http://localhost:${config.port}/dashboard`);
   });
 
   if (Number(config.port) !== 3000) {

@@ -1,6 +1,6 @@
-# 🤖 Azhar's WhatsApp AI Bot & Control Room Dashboard
+# 🤖 WhatsApp AI Assistant & Web Dashboard
 
-A production-ready, **free-to-run** autonomous WhatsApp AI assistant with a real-time web-based **Control Room Dashboard**. Powered by Google Gemini, Groq, and NVIDIA NIM with automatic failover, built with `whatsapp-web.js`, Express, Socket.IO, and Vanilla JS.
+A professional, production-ready autonomous **WhatsApp AI Assistant** with a real-time web-based management dashboard. Powered by Google Gemini, Groq, and NVIDIA NIM with automatic failover, built with `whatsapp-web.js`, Express, Socket.IO, and Vanilla JS.
 
 [![Node Version](https://img.shields.io/badge/node-%3E%3D22.0.0-brightgreen.svg)](https://nodejs.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
