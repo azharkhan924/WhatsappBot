@@ -103,8 +103,7 @@ $('gate-admin-submit')?.addEventListener('click', async () => {
     localStorage.setItem('bot_dashboard_key', DASHBOARD_KEY);
 
     toast('Logged in successfully!', 'success');
-    showDashboard();
-    startSession();
+    init();
   } catch (err) {
     $('gate-error-admin').textContent = err.message;
     $('gate-admin-submit').disabled = false;
@@ -191,8 +190,7 @@ $('gate-verify-otp')?.addEventListener('click', async () => {
     localStorage.setItem('bot_dashboard_key', DASHBOARD_KEY);
 
     toast('Verified successfully!', 'success');
-    showDashboard();
-    startSession();
+    init();
   } catch (err) {
     $('gate-error-phone').textContent = err.message;
     $('gate-verify-otp').disabled = false;
