@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "5fa3f242-fff1-4e20-b0d9-69821aa21b52"
+      }
+    },
+    "android": {
+      "package": "com.azharkhan1.whatsappaibot"
+    }
+  }
+}

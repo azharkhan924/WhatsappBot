@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp AI Assistant — Enterprise AI Powered by Custom System Prompts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090D16;
+    --surface: #111827;
+    --surface-card: #162032;
+    --surface-hover: #1E293B;
+    --border: #2A364F;
+    --border-light: #3B4D71;
+    --text: #F8FAFC;
+    --muted: #94A3B8;
+    --wa-green: #25D366;
+    --wa-dark: #075E54;
+    --wa-teal: #128C7E;
+    --wa-chat-bg: #0B141A;
+    --wa-bubble-in: #202C33;
+    --wa-bubble-out: #005C4B;
+    --accent: #6366F1;
+    --accent-gradient: linear-gradient(135deg, #25D366 0%, #10B981 50%, #06B6D4 100%);
+    --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Grid Background Overlay */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 15% 20%, rgba(37, 211, 102, 0.08) 0%, transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+      linear-gradient(to right, rgba(42, 54, 79, 0.15) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(42, 54, 79, 0.15) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 clamp(20px, 5vw, 32px);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* TOP NAV */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .logo {
+    font-family: var(--font-main);
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .logo .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--wa-green);
+    box-shadow: 0 0 12px var(--wa-green);
+    position: relative;
+  }
+  .logo .dot::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid var(--wa-green);
+    animation: ripple 2s infinite ease-out;
+  }
+  @keyframes ripple {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+  .navlink {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: color 0.2s ease;
+  }
+  .navlink:hover { color: var(--text); }
+  .badge-enterprise {
+    background: rgba(37, 211, 102, 0.12);
+    border: 1px solid rgba(37, 211, 102, 0.3);
+    color: var(--wa-green);
+    padding: 5px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* HERO SECTION */
+  .hero {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: clamp(40px, 6vw, 80px);
+    padding: clamp(50px, 8vw, 100px) 0 clamp(60px, 8vw, 90px);
+    align-items: center;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--wa-green);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(37, 211, 102, 0.08);
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(37, 211, 102, 0.2);
+  }
+  h1 {
+    font-size: clamp(36px, 5.5vw, 58px);
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.03em;
+    margin-bottom: 24px;
+  }
+  h1 .accent-text {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .lede {
+    color: var(--muted);
+    font-size: clamp(16px, 2vw, 18px);
+    line-height: 1.7;
+    margin-bottom: 36px;
+    max-width: 560px;
+  }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  /* CTA Buttons */
+  .cta-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--wa-green);
+    color: #04140B;
+    font-weight: 700;
+    font-size: 16px;
+    padding: 16px 32px;
+    border-radius: 12px;
+    text-decoration: none;
+    border: 1px solid var(--wa-green);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 8px 24px rgba(37, 211, 102, 0.25);
+    cursor: pointer;
+  }
+  .btn-download:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 32px rgba(37, 211, 102, 0.4);
+    background: #28E16D;
+  }
+  .btn-download svg { width: 22px; height: 22px; }
+  
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    padding: 16px 24px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    transition: all 0.2s ease;
+  }
+  .btn-secondary:hover {
+    border-color: var(--muted);
+    background: var(--surface-hover);
+  }
+
+  .meta-badges {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-family: var(--font-mono); }
+  .meta-val { font-size: 14px; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+
+  /* DOWNLOAD NOTICE TOAST */
+  #download-notice {
+    display: none;
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: rgba(37, 211, 102, 0.1);
+    border: 1px solid rgba(37, 211, 102, 0.3);
+    border-radius: 10px;
+    font-size: 13.5px;
+    color: #E2E8F0;
+    max-width: 560px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ENHANCED ANDROID PHONE MOCKUP */
+  .phone-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .phone-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .phone-tab {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 8px 14px;
+    border-radius: 100px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .phone-tab.active {
+    background: var(--wa-green);
+    color: #04140B;
+    border-color: var(--wa-green);
+  }
+  .phone-tab:hover:not(.active) {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+
+  .phone {
+    width: min(380px, 92vw);
+    background: #0D1117;
+    border-radius: 46px;
+    padding: 14px;
+    box-shadow: 0 35px 90px rgba(0,0,0,0.8), 0 0 0 2px var(--border-light);
+    position: relative;
+  }
+  /* Phone Speaker Grill */
+  .phone::before {
+    content: "";
+    position: absolute;
+    top: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50px;
+    height: 5px;
+    background: #21262d;
+    border-radius: 10px;
+    z-index: 10;
+  }
+  .phone-screen {
+    background: var(--wa-chat-bg);
+    border-radius: 34px;
+    overflow: hidden;
+    height: min(680px, 150vw);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Android Status Bar */
+  .android-status-bar {
+    background: #075E54;
+    padding: 10px 20px 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-main);
+    font-size: 12px;
+    font-weight: 600;
+    color: #FFF;
+  }
+  .status-icons { display: flex; gap: 8px; align-items: center; font-size: 11px; }
+
+  /* WhatsApp Header */
+  .chat-header {
+    background: var(--wa-dark);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #FFF;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .back-arrow { font-size: 18px; cursor: pointer; }
+  .chat-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent-gradient);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    color: #000;
+    flex-shrink: 0;
+  }
+  .chat-info .name { font-size: 15px; font-weight: 700; line-height: 1.2; }
+  .chat-info .status { font-size: 11.5px; opacity: 0.85; }
+  .header-right { display: flex; gap: 16px; align-items: center; font-size: 18px; opacity: 0.9; }
+
+  /* Chat Messages Body */
+  .chat-body {
+    flex: 1;
+    padding: 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+    background-image: radial-gradient(circle at 50% 50%, rgba(37, 211, 102, 0.03) 0%, transparent 60%);
+  }
+  .date-divider {
+    align-self: center;
+    background: #182229;
+    color: #8696A0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+  }
+  .bubble {
+    max-width: 82%;
+    padding: 10px 14px 6px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    line-height: 1.45;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .bubble.in {
+    align-self: flex-start;
+    background: var(--wa-bubble-in);
+    color: #E9EDEF;
+    border-top-left-radius: 2px;
+  }
+  .bubble.out {
+    align-self: flex-end;
+    background: var(--wa-bubble-out);
+    color: #E9EDEF;
+    border-top-right-radius: 2px;
+  }
+  .msg-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    color: #8696A0;
+    margin-top: 4px;
+  }
+  .bubble.out .msg-meta { color: #84D1C5; }
+  .ticks { font-weight: bold; font-size: 12px; color: #53BDEB; }
+
+  /* Chat Input Bar */
+  .chat-input-bar {
+    background: #1E2428;
+    padding: 8px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .input-pill {
+    flex: 1;
+    background: #2A3942;
+    border-radius: 24px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #8696A0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .mic-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--wa-teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFF;
+  }
+
+  /* SECTIONS */
+  .section {
+    padding: clamp(60px, 8vw, 100px) 0;
+    border-top: 1px solid var(--border);
+  }
+  .section-head {
+    text-align: center;
+    max-width: 720px;
+    margin: 0 auto clamp(40px, 6vw, 60px);
+  }
+  .section-tag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--wa-green);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    display: block;
+  }
+  h2 {
+    font-size: clamp(28px, 4vw, 42px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .section-head p { color: var(--muted); font-size: 16.5px; }
+
+  /* SYSTEM PROMPT FEATURE BLOCK */
+  .prompt-showcase {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: clamp(24px, 5vw, 48px);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+    margin-bottom: 60px;
+  }
+  .prompt-code {
+    background: #0B0F19;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: #A5B4FC;
+    position: relative;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+  }
+  .prompt-code .bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .prompt-code .keyword { color: #F43F5E; }
+  .prompt-code .string { color: #34D399; }
+
+  /* BUSINESS REQUIREMENTS GRID */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px 24px;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+  }
+  .card:hover {
+    border-color: var(--wa-green);
+    transform: translateY(-4px);
+    background: var(--surface-card);
+  }
+  .card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(37, 211, 102, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--wa-green);
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  .card h3 { font-size: 19px; font-weight: 700; margin-bottom: 12px; }
+  .card p { font-size: 14.5px; color: var(--muted); line-height: 1.6; }
+
+  /* INSTALLATION STEPS */
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    position: relative;
+  }
+  .step-num {
+    font-family: var(--font-mono);
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--wa-green);
+    opacity: 0.8;
+    margin-bottom: 14px;
+  }
+  .step-card h4 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .step-card p { font-size: 14px; color: var(--muted); }
+
+  /* TECH STACK CHIPS */
+  .stack-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+  .chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 10px 20px;
+    border-radius: 100px;
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chip::before { content: "✓"; color: var(--wa-green); font-weight: bold; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+  .footer-left { font-size: 14px; color: var(--muted); }
+  .footer-left strong { color: var(--text); }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+  .footer-links a:hover { color: var(--text); }
+
+  /* RESPONSIVE BREAKPOINTS */
+  @media (max-width: 980px) {
+    .hero { grid-template-columns: 1fr; text-align: center; }
+    .hero .lede { margin-left: auto; margin-right: auto; }
+    .cta-row, .meta-badges { justify-content: center; }
+    .phone-container { order: -1; margin-bottom: 20px; }
+    .prompt-showcase { grid-template-columns: 1fr; }
+    .grid-3, .steps-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .grid-3, .steps-grid { grid-template-columns: 1fr; }
+    .btn-download, .btn-secondary { width: 100%; }
+    .phone { width: 96vw; border-radius: 36px; }
+    .phone-screen { height: 145vw; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- NAVIGATION -->
+  <nav>
+    <a href="#" class="logo">
+      <span class="dot"></span>
+      AK.DEV / WhatsApp AI Assistant
+    </a>
+    <div class="nav-actions">
+      <span class="badge-enterprise">Enterprise Ready</span>
+      <a class="navlink" href="https://github.com/azharkhan924" target="_blank">GitHub</a>
+    </div>
+  </nav>
+
+  <!-- HERO SECTION -->
+  <div class="hero">
+    <div>
+      <div class="eyebrow">⚡ Self-Hosted · Dynamic System Prompts · Android APK</div>
+      <h1>Intelligent Auto-Replies Tailored to <span class="accent-text">Your Business</span>.</h1>
+      <p class="lede">
+        Transform your WhatsApp into an autonomous, 24/7 intelligent assistant. Driven by <strong>Custom System Prompts</strong>, it adapts seamlessly to customer support SLAs, appointment bookings, e-commerce sales, or professional inquiries—behaving exactly as instructed.
+      </p>
+
+      <div class="cta-row">
+        <!-- Direct APK link with .apk extension and JS download helper -->
+        <a id="download-apk-btn" class="btn-download" href="https://github.com/azharkhan924/WA-Assistant-DownloadPage/releases/download/v1.0.0/WhatsApp-AI-Assistant.apk" download="WhatsApp-AI-Assistant.apk">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Download APK Installer
+        </a>
+        <a class="btn-secondary" href="#features">Explore Architecture ↓</a>
+      </div>
+
+      <div id="download-notice"></div>
+
+      <div class="meta-badges">
+        <div class="meta-item">
+          <span class="meta-label">Package Size</span>
+          <span class="meta-val">~75 MB (.apk)</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">OS Compatibility</span>
+          <span class="meta-val">Android 8.0+ (Oreo)</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">AI Engine</span>
+          <span class="meta-val">Google Gemini / OpenAI</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Pairing Method</span>
+          <span class="meta-val">QR Code Scan</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- REALISTIC & ENHANCED ANDROID PHONE MOCKUP -->
+    <div class="phone-container">
+      <div class="phone-tabs">
+        <button class="phone-tab active" onclick="switchScenario('support')">🏢 B2B Support</button>
+        <button class="phone-tab" onclick="switchScenario('booking')">🏥 Clinic Booking</button>
+        <button class="phone-tab" onclick="switchScenario('retail')">🛒 E-Commerce</button>
+      </div>
+
+      <div class="phone">
+        <div class="phone-screen">
+          <!-- Android Status Bar -->
+          <div class="android-status-bar">
+            <span>9:41</span>
+            <div class="status-icons">
+              <span>VoLTE</span>
+              <span>📶</span>
+              <span>🔋 98%</span>
+            </div>
+          </div>
+
+          <!-- WhatsApp Header -->
+          <div class="chat-header">
+            <div class="header-left">
+              <span class="back-arrow">←</span>
+              <div class="chat-avatar" id="mock-avatar">AI</div>
+              <div class="chat-info">
+                <div class="name" id="mock-name">Enterprise Support AI</div>
+                <div class="status">online • automated</div>
+              </div>
+            </div>
+            <div class="header-right">
+              <span>📹</span>
+              <span>📞</span>
+              <span>⋮</span>
+            </div>
+          </div>
+
+          <!-- Chat Body -->
+          <div class="chat-body" id="chat-messages">
+            <div class="date-divider">TODAY</div>
+            <!-- Dynamic Messages injected by JS -->
+          </div>
+
+          <!-- Chat Input Bar -->
+          <div class="chat-input-bar">
+            <div class="input-pill">
+              <span>Message (AI Auto-Reply Active)...</span>
+              <span>📎</span>
+            </div>
+            <div class="mic-btn">➤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DYNAMIC SYSTEM PROMPT SECTION -->
+  <div class="section" id="features">
+    <div class="section-head">
+      <span class="section-tag">Total Control</span>
+      <h2>Behaves Exactly As Per Your System Prompt</h2>
+      <p>No hardcoded rules or rigid conversational flows. You command the persona, domain guidelines, response tone, and escalation triggers directly from your dashboard.</p>
+    </div>
+
+    <div class="prompt-showcase">
+      <div>
+        <h3 style="font-size: 24px; margin-bottom: 16px;">Tailored to Any Workflow</h3>
+        <p style="color: var(--muted); margin-bottom: 20px;">
+          Whether instructing the AI to act as a formal financial advisor, a empathetic clinic concierge, or a strict SLA customer support desk, the system prompt acts as the brain.
+        </p>
+        <ul style="color: var(--muted); list-style: none; display: flex; flex-direction: column; gap: 12px;">
+          <li>🔒 <strong>Strict Boundary Enforcement:</strong> Prevent AI hallucination by defining off-limit topics.</li>
+          <li>🌐 <strong>Multilingual Fluency:</strong> Automatically reply in English, Hindi, Spanish, or Arabic based on customer preference.</li>
+          <li>⚡ <strong>Live Update without Reboot:</strong> Edit instructions on the web dashboard and watch behavior change instantly.</li>
+        </ul>
+      </div>
+
+      <div class="prompt-code">
+        <div class="bar">
+          <span>SYSTEM_PROMPT.config</span>
+          <span>● Live Active</span>
+        </div>
+        <div>
+          <span class="keyword">Role:</span> <span class="string">"Senior Customer Success Specialist at Apex Cloud."</span><br><br>
+          <span class="keyword">Guidelines:</span><br>
+          1. Greet clients professionally and verify their account ID.<br>
+          2. Provide concise, accurate solutions based on verified docs.<br>
+          3. If user mentions 'Emergency' or 'Server Down', immediately escalate to human engineering team.<br>
+          4. Maintain a helpful, polished, executive tone at all times.
+        </div>
+      </div>
+    </div>
+
+    <!-- BUSINESS USE CASES -->
+    <div class="section-head" style="margin-top: 40px;">
+      <span class="section-tag">Enterprise Capabilities</span>
+      <h2>Built for Every Business Requirement</h2>
+      <p>Engineered for reliability, privacy, and seamless operational efficiency across industries.</p>
+    </div>
+
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-icon">🛒</div>
+        <h3>E-Commerce & Retail</h3>
+        <p>Automate product availability queries, dispatch tracking links, handle return policy questions, and recover abandoned carts 24/7 without delays.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🎧</div>
+        <h3>Customer Support SLAs</h3>
+        <p>Instantly resolve L1 support inquiries, categorize incoming help tickets, and provide instant technical guidance with zero queue wait times.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🏥</div>
+        <h3>Healthcare & Scheduling</h3>
+        <p>Manage patient consultation slots, answer routine pre-appointment preparation FAQs, and send gentle automated reminders seamlessly.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🏢</div>
+        <h3>Real Estate & Agencies</h3>
+        <p>Qualify incoming buyer leads instantly, collect property budget criteria, share digital brochures, and book on-site visits autonomously.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <h3>Granular Whitelisting</h3>
+        <p>Decide exactly which contacts or client groups receive AI assistance. Keep personal family chats untouched while automating business numbers.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">⚙️</div>
+        <h3>Human Override Switch</h3>
+        <p>Jump into any active chat whenever needed. One click pauses AI replies instantly, allowing seamless handoff between AI and human staff.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSTALLATION STEPS -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-tag">Quick Deployment</span>
+      <h2>Start Automating in 3 Simple Steps</h2>
+      <p>No complex backend server configuration required. Get up and running directly on your Android device.</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <h4>Install Android APK</h4>
+        <p>Download the standalone installer (`WhatsApp-AI-Assistant.apk`) and grant background execution permissions.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">02</div>
+        <h4>Scan QR Code</h4>
+        <p>Open WhatsApp → Linked Devices and scan the code displayed in the app to establish a secure local web socket session.</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">03</div>
+        <h4>Configure System Prompt</h4>
+        <p>Enter your business instructions, set your whitelist rules, and activate automated replies instantly.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="section">
+    <div class="section-head">
+      <span class="section-tag">Architecture</span>
+      <h2>Robust Modern Tech Stack</h2>
+    </div>
+    <div class="stack-row">
+      <div class="chip">Node.js Engine</div>
+      <div class="chip">whatsapp-web.js</div>
+      <div class="chip">Google Gemini AI</div>
+      <div class="chip">React Admin Dashboard</div>
+      <div class="chip">Android Background Service</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-left">
+      Designed & Developed by <strong>Azhar Khan</strong> • Backend & AI Solutions Engineer
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/azharkhan924" target="_blank">GitHub Profile</a>
+      <a href="#features">Features</a>
+      <a href="#download-apk-btn">Download APK</a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // DYNAMIC INTERACTIVE PHONE MOCKUP SCENARIOS
+  const scenarios = {
+    support: {
+      name: "Enterprise Support AI",
+      avatar: "AI",
+      messages: [
+        { type: "in", text: "Hello, we are experiencing an issue configuring our API webhook endpoint." },
+        { type: "out", text: "Welcome to Apex Cloud Support. I would be happy to assist you. Could you confirm if you are receiving a 401 Unauthorized or a 500 status code?" },
+        { type: "in", text: "We are getting a 401 Unauthorized when sending the payload." },
+        { type: "out", text: "Thank you for confirming. Please verify that your X-API-Key header matches the secret generated in your dashboard settings. Let me know if you need the verification documentation link! ✓✓" }
+      ]
+    },
+    booking: {
+      name: "City Health Clinic AI",
+      avatar: "HC",
+      messages: [
+        { type: "in", text: "Hi, I would like to book a dental consultation for tomorrow afternoon." },
+        { type: "out", text: "Hello! Welcome to City Health Clinic. Dr. Sharma has open slots tomorrow at 3:00 PM and 4:30 PM. Which time suits you best?" },
+        { type: "in", text: "4:30 PM would be perfect." },
+        { type: "out", text: "Appointment confirmed for tomorrow at 4:30 PM! We have sent a confirmation SMS to your number. Please arrive 10 minutes prior. ✓✓" }
+      ]
+    },
+    retail: {
+      name: "Luxe Retail Concierge",
+      avatar: "LX",
+      messages: [
+        { type: "in", text: "Can you tell me if Order #49281 has been dispatched yet?" },
+        { type: "out", text: "Hello! Checking our logistics database for Order #49281 right now..." },
+        { type: "out", text: "Good news! Your order was dispatched via BlueDart Express today. Your tracking number is BD9821049IN. Estimated delivery is Friday. ✓✓" }
+      ]
+    }
+  };
+
+  function switchScenario(key) {
+    const tabs = document.querySelectorAll(".phone-tab");
+    tabs.forEach(t => t.classList.remove("active"));
+    event.target.classList.add("active");
+
+    const sc = scenarios[key];
+    document.getElementById("mock-name").textContent = sc.name;
+    document.getElementById("mock-avatar").textContent = sc.avatar;
+
+    const chatBox = document.getElementById("chat-messages");
+    chatBox.innerHTML = '<div class="date-divider">TODAY</div>';
+
+    sc.messages.forEach((m, idx) => {
+      const div = document.createElement("div");
+      div.className = `bubble ${m.type}`;
+      div.style.animationDelay = `${idx * 0.15}s`;
+      div.innerHTML = `${m.text} <div class="msg-meta">10:1${idx + 2} AM</div>`;
+      chatBox.appendChild(div);
+    });
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // Initialize default scenario
+  window.addEventListener("DOMContentLoaded", () => {
+    switchScenario('support');
+
+    // SMART APK DOWNLOAD HELPER
+    const downloadBtn = document.getElementById("download-apk-btn");
+    const notice = document.getElementById("download-notice");
+    if (downloadBtn && notice) {
+      downloadBtn.addEventListener("click", (e) => {
+        notice.style.display = "block";
+        notice.innerHTML = "💡 <strong>Downloading WhatsApp-AI-Assistant.apk (~75 MB)...</strong><br>If your browser saves the file without an extension, simply rename it to <code>WhatsApp-AI-Assistant.apk</code> before installing on your Android device.";
+      });
+    }
+  });
+</script>
+</body>
+</html>

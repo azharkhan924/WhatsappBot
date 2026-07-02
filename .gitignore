@@ -6,3 +6,5 @@ npm-debug.log*
 .DS_Store
 *.pid
 .wwebjs_cache/
+*.apk
+mobile/WhatsApp-AI-Assistant*
