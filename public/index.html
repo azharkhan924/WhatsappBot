@@ -418,11 +418,14 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
   .toast.error { border-color: var(--danger); color: var(--danger); }
   .toast.success { border-color: var(--whatsapp-green); color: var(--whatsapp-green); }
+  .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; margin-top: 18px; }
+  .auth-tab { flex: 1; padding: 8px 12px; background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; cursor: pointer; text-align: center; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+  .auth-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 </style>
 </head>
 <body>
 
-<!-- ===== Setup gate: ask for backend URL + dashboard key once ===== -->
+<!-- ===== Setup gate: ask for backend URL + authentication once ===== -->
 <div class="gate" id="gate">
   <div class="title-block" style="margin-bottom:20px;">
     <p class="eyebrow">// first time setup</p>
@@ -431,10 +434,32 @@
   <div class="card">
     <h2>Backend URL</h2>
     <input type="text" id="gate-url" placeholder="https://your-bot-backend.up.railway.app" autocomplete="off">
-    <h2 style="margin-top:18px;">Dashboard key</h2>
-    <input type="password" id="gate-key" placeholder="the DASHBOARD_KEY you set on the server" autocomplete="off">
-    <div class="gate-error" id="gate-error"></div>
-    <button class="primary full" id="gate-submit" style="margin-top:6px;">Connect</button>
+    
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tab-phone">📱 WhatsApp Phone</div>
+      <div class="auth-tab" id="tab-key">🔑 Dashboard Key</div>
+    </div>
+
+    <!-- Phone Login Section -->
+    <div id="section-phone">
+      <h2>Your Phone Number</h2>
+      <input type="tel" id="gate-phone" placeholder="e.g. +14155551234" autocomplete="off">
+      <div id="otp-group" style="display:none; margin-top:12px;">
+        <h2>6-Digit Verification Code</h2>
+        <input type="text" id="gate-otp" placeholder="Enter code sent via WhatsApp" autocomplete="off" maxlength="6">
+      </div>
+      <div class="gate-error" id="gate-error-phone"></div>
+      <button class="primary full" id="gate-send-otp" style="margin-top:12px;">Send Verification Code</button>
+      <button class="primary full" id="gate-verify-otp" style="margin-top:12px; display:none;">Verify & Connect</button>
+    </div>
+
+    <!-- Key Login Section -->
+    <div id="section-key" style="display:none;">
+      <h2>Dashboard key</h2>
+      <input type="password" id="gate-key" placeholder="the DASHBOARD_KEY you set on the server" autocomplete="off">
+      <div class="gate-error" id="gate-error"></div>
+      <button class="primary full" id="gate-submit" style="margin-top:12px;">Connect</button>
+    </div>
   </div>
 </div>
 

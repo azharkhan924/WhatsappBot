@@ -24,4 +24,8 @@ router.post(['/api/reconnect', '/reconnect'], dashboardAuth, controller.postReco
 router.get(['/api/config', '/config'], dashboardAuth, controller.getConfig);
 router.put(['/api/config', '/config'], dashboardAuth, controller.putConfig);
 
+// Phone Number OTP Login routes
+router.post(['/api/auth/request-otp', '/auth/request-otp'], controller.postRequestOtp);
+router.post(['/api/auth/verify-otp', '/auth/verify-otp'], controller.postVerifyOtp);
+
 module.exports = router;

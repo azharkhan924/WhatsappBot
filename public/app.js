@@ -27,6 +27,119 @@ function showDashboard() {
   $('dashboard').classList.remove('hidden');
 }
 
+function getCleanGateUrl() {
+  let rawUrl = $('gate-url').value.trim();
+  if (!rawUrl && window.location.origin && !window.location.origin.startsWith('file:')) {
+    rawUrl = window.location.origin;
+  }
+  if (rawUrl && !/^https?:\/\//i.test(rawUrl)) {
+    rawUrl = 'https://' + rawUrl;
+  }
+  return rawUrl.replace(/\/+$/, '').replace(/\/(dashboard|static)$/i, '');
+}
+
+$('tab-phone').addEventListener('click', () => {
+  $('tab-phone').classList.add('active');
+  $('tab-key').classList.remove('active');
+  $('section-phone').style.display = 'block';
+  $('section-key').style.display = 'none';
+});
+
+$('tab-key').addEventListener('click', () => {
+  $('tab-key').classList.add('active');
+  $('tab-phone').classList.remove('active');
+  $('section-key').style.display = 'block';
+  $('section-phone').style.display = 'none';
+});
+
+$('gate-send-otp').addEventListener('click', async () => {
+  const url = getCleanGateUrl();
+  const phone = $('gate-phone').value.trim();
+  $('gate-error-phone').textContent = '';
+
+  if (!url || !phone) {
+    $('gate-error-phone').textContent = 'Backend URL and Phone number are required.';
+    return;
+  }
+
+  $('gate-send-otp').disabled = true;
+  $('gate-send-otp').textContent = 'Sending WhatsApp Code…';
+
+  try {
+    let res = await fetch(`${url}/api/auth/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    });
+    if (res.status === 404) {
+      res = await fetch(`${url}/auth/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+    }
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || data.message || 'Failed to send verification code.');
+    }
+    toast('Code sent via WhatsApp!', 'success');
+    $('otp-group').style.display = 'block';
+    $('gate-send-otp').style.display = 'none';
+    $('gate-verify-otp').style.display = 'block';
+  } catch (err) {
+    $('gate-error-phone').textContent = err.message;
+    $('gate-send-otp').disabled = false;
+    $('gate-send-otp').textContent = 'Send Verification Code';
+  }
+});
+
+$('gate-verify-otp').addEventListener('click', async () => {
+  const url = getCleanGateUrl();
+  const phone = $('gate-phone').value.trim();
+  const otp = $('gate-otp').value.trim();
+  $('gate-error-phone').textContent = '';
+
+  if (!otp) {
+    $('gate-error-phone').textContent = 'Please enter the 6-digit code received on WhatsApp.';
+    return;
+  }
+
+  $('gate-verify-otp').disabled = true;
+  $('gate-verify-otp').textContent = 'Verifying…';
+
+  try {
+    let res = await fetch(`${url}/api/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp })
+    });
+    if (res.status === 404) {
+      res = await fetch(`${url}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp })
+      });
+    }
+    const data = await res.json();
+    if (!res.ok || !data.success || !data.dashboardKey) {
+      throw new Error(data.error || data.message || 'Invalid verification code.');
+    }
+
+    API_BASE = url;
+    DASHBOARD_KEY = data.dashboardKey;
+    localStorage.setItem('bot_api_base', API_BASE);
+    localStorage.setItem('bot_dashboard_key', DASHBOARD_KEY);
+
+    toast('Verified successfully!', 'success');
+    showDashboard();
+    startSession();
+  } catch (err) {
+    $('gate-error-phone').textContent = err.message;
+    $('gate-verify-otp').disabled = false;
+    $('gate-verify-otp').textContent = 'Verify & Connect';
+  }
+});
+
 $('gate-submit').addEventListener('click', async () => {
   let rawUrl = $('gate-url').value.trim();
   if (!rawUrl && window.location.origin && !window.location.origin.startsWith('file:')) {

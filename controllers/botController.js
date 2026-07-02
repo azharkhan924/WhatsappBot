@@ -4,6 +4,7 @@
 const whatsappService = require('../services/whatsappService');
 const aiService = require('../services/aiService');
 const botConfigService = require('../services/botConfigService');
+const authService = require('../services/authService');
 const conversationMemory = require('../memory/conversationMemory');
 const provider = require('../providers');
 const logger = require('../utils/logger');
@@ -93,6 +94,26 @@ async function putConfig(req, res) {
   res.json(updated);
 }
 
+async function postRequestOtp(req, res, next) {
+  try {
+    const { phone } = req.body || {};
+    const result = await authService.requestOtp(phone);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function postVerifyOtp(req, res, next) {
+  try {
+    const { phone, otp } = req.body || {};
+    const result = await authService.verifyOtp(phone, otp);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getRoot,
   getHealth,
@@ -104,4 +125,6 @@ module.exports = {
   postReconnect,
   getConfig,
   putConfig,
+  postRequestOtp,
+  postVerifyOtp,
 };
