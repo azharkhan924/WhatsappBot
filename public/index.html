@@ -1,573 +1,786 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Control Room — Azhar's WhatsApp Bot</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  if (typeof io === 'undefined') {
-    document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');
-  }
-</script>
-<style>
-  :root {
-    --bg: #0D1117;
-    --surface: #161B22;
-    --surface-raised: #1C2230;
-    --border: #2A3140;
-    --text: #E6EDF3;
-    --text-muted: #8B949E;
-    --whatsapp-green: #25D366;
-    --accent: #7C5CFF;
-    --accent-dim: #5A42C7;
-    --warning: #E3B341;
-    --danger: #F85149;
-    --mono: 'JetBrains Mono', monospace;
-    --sans: 'Inter', sans-serif;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Room — Azhar's WhatsApp Bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    if (typeof io === 'undefined') {
+      document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"><\/script>');
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #0D1117;
+      --surface: #161B22;
+      --surface-raised: #1C2230;
+      --border: #2A3140;
+      --text: #E6EDF3;
+      --text-muted: #8B949E;
+      --whatsapp-green: #25D366;
+      --accent: #7C5CFF;
+      --accent-dim: #5A42C7;
+      --warning: #E3B341;
+      --danger: #F85149;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Inter', sans-serif;
+    }
 
-  * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
-  body {
-    margin: 0;
-    background: var(--bg);
-    background-image:
-      radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.08), transparent 40%),
-      radial-gradient(circle at 85% 100%, rgba(37, 211, 102, 0.06), transparent 40%);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    padding: 32px 24px 80px;
-  }
+    body {
+      margin: 0;
+      background: var(--bg);
+      background-image:
+        radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.08), transparent 40%),
+        radial-gradient(circle at 85% 100%, rgba(37, 211, 102, 0.06), transparent 40%);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      padding: 32px 24px 80px;
+    }
 
-  .wrap {
-    max-width: 1080px;
-    margin: 0 auto;
-  }
+    .wrap {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
 
-  /* ---------- Header ---------- */
-  header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
+    /* ---------- Header ---------- */
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
 
-  .title-block .eyebrow {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--accent);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin: 0 0 4px;
-  }
+    .title-block .eyebrow {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 0 0 4px;
+    }
 
-  .title-block h1 {
-    margin: 0;
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-  }
+    .title-block h1 {
+      margin: 0;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
 
-  .global-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--text-muted);
-    padding: 6px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-  }
+    .global-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+    }
 
-  .dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    flex-shrink: 0;
-  }
-  .dot.connected { background: var(--whatsapp-green); box-shadow: 0 0 0 0 rgba(37,211,102,0.6); animation: pulse 2s infinite; }
-  .dot.waiting { background: var(--warning); }
-  .dot.off { background: var(--danger); }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
 
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(37,211,102,0.5); }
-    70% { box-shadow: 0 0 0 6px rgba(37,211,102,0); }
-    100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
-  }
+    .dot.connected {
+      background: var(--whatsapp-green);
+      box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.6);
+      animation: pulse 2s infinite;
+    }
 
-  /* ---------- Grid ---------- */
-  .grid {
-    display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 20px;
-    align-items: start;
-  }
+    .dot.waiting {
+      background: var(--warning);
+    }
 
-  @media (max-width: 860px) {
-    .grid { grid-template-columns: 1fr; }
-  }
+    .dot.off {
+      background: var(--danger);
+    }
 
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 20px;
-  }
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5);
+      }
 
-  .card h2 {
-    font-size: 13px;
-    font-family: var(--mono);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    margin: 0 0 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+      70% {
+        box-shadow: 0 0 0 6px rgba(37, 211, 102, 0);
+      }
 
-  /* ---------- Connection card ---------- */
-  .qr-stage {
-    aspect-ratio: 1;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    position: relative;
-    margin-bottom: 14px;
-  }
+      100% {
+        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
+      }
+    }
 
-  .qr-stage img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    padding: 14px;
-    background: #fff;
-  }
+    /* ---------- Grid ---------- */
+    .grid {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
 
-  .qr-placeholder {
-    font-family: var(--mono);
-    font-size: 13px;
-    color: var(--text-muted);
-    text-align: center;
-    padding: 20px;
-  }
+    @media (max-width: 860px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
 
-  .qr-placeholder .cursor {
-    display: inline-block;
-    width: 8px;
-    height: 14px;
-    background: var(--accent);
-    margin-left: 4px;
-    animation: blink 1s step-end infinite;
-    vertical-align: middle;
-  }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
 
-  @keyframes blink { 50% { opacity: 0; } }
+    .card h2 {
+      font-size: 13px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 0 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-  .connected-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    color: var(--whatsapp-green);
-  }
+    /* ---------- Connection card ---------- */
+    .qr-stage {
+      aspect-ratio: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 14px;
+    }
 
-  .connected-state .big-dot {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--whatsapp-green);
-    box-shadow: 0 0 0 0 rgba(37,211,102,0.6);
-    animation: pulse 2s infinite;
-  }
+    .qr-stage img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 14px;
+      background: #fff;
+    }
 
-  .connected-number {
-    font-family: var(--mono);
-    font-size: 14px;
-    color: var(--text);
-  }
+    .qr-placeholder {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 20px;
+    }
 
-  .conn-meta {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    line-height: 1.6;
-  }
+    .qr-placeholder .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--accent);
+      margin-left: 4px;
+      animation: blink 1s step-end infinite;
+      vertical-align: middle;
+    }
 
-  button {
-    font-family: var(--sans);
-    font-weight: 600;
-    font-size: 13px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--surface-raised);
-    color: var(--text);
-    padding: 9px 14px;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.05s;
-  }
-  button:hover { border-color: var(--accent); }
-  button:active { transform: scale(0.98); }
-  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  button.primary { background: var(--accent); border-color: var(--accent-dim); color: #fff; }
-  button.primary:hover { background: var(--accent-dim); }
-  button.full { width: 100%; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
+    @keyframes blink {
+      50% {
+        opacity: 0;
+      }
+    }
 
-  /* ---------- Prompt editor ---------- */
-  textarea {
-    width: 100%;
-    min-height: 280px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13.5px;
-    line-height: 1.65;
-    padding: 16px;
-    resize: vertical;
-  }
-  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .connected-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      color: var(--whatsapp-green);
+    }
 
-  .prompt-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 12px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
+    .connected-state .big-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--whatsapp-green);
+      box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.6);
+      animation: pulse 2s infinite;
+    }
 
-  .save-msg {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--whatsapp-green);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .save-msg.show { opacity: 1; }
+    .connected-number {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--text);
+    }
 
-  .char-count {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-muted);
-  }
+    .conn-meta {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
 
-  /* ---------- Toggles ---------- */
-  .toggle-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .toggle-row:last-child { border-bottom: none; }
+    button {
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 13px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+      color: var(--text);
+      padding: 9px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.05s;
+    }
 
-  .toggle-label { font-size: 14px; font-weight: 500; }
-  .toggle-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    button:hover {
+      border-color: var(--accent);
+    }
 
-  .switch {
-    position: relative;
-    width: 44px;
-    height: 24px;
-    flex-shrink: 0;
-  }
-  .switch input { opacity: 0; width: 0; height: 0; }
-  .slider {
-    position: absolute; cursor: pointer; inset: 0;
-    background: var(--border);
-    border-radius: 100px;
-    transition: background 0.15s;
-  }
-  .slider::before {
-    content: "";
-    position: absolute;
-    width: 18px; height: 18px;
-    left: 3px; top: 3px;
-    background: var(--text);
-    border-radius: 50%;
-    transition: transform 0.15s;
-  }
-  input:checked + .slider { background: var(--whatsapp-green); }
-  input:checked + .slider::before { transform: translateX(20px); background: #fff; }
-  .switch input:focus-visible + .slider { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:active {
+      transform: scale(0.98);
+    }
 
-  /* ---------- Whitelist ---------- */
-  .whitelist-input-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .whitelist-input-row input {
-    flex: 1;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    padding: 9px 12px;
-  }
-  .whitelist-input-row input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
 
-  .chip-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .chip {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    border-radius: 100px;
-    padding: 6px 10px 6px 12px;
-    font-family: var(--mono);
-    font-size: 12.5px;
-  }
-  .chip button {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    padding: 0;
-    width: 16px;
-    height: 16px;
-    line-height: 1;
-    font-size: 14px;
-    border-radius: 50%;
-  }
-  .chip button:hover { color: var(--danger); }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent-dim);
+      color: #fff;
+    }
 
-  .empty-note {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text-muted);
-    padding: 8px 0;
-  }
+    button.primary:hover {
+      background: var(--accent-dim);
+    }
 
-  /* ---------- Holding reply ---------- */
-  .holding-input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 13.5px;
-    padding: 10px 12px;
-    margin-top: 8px;
-  }
-  .holding-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    button.full {
+      width: 100%;
+    }
 
-  /* ---------- Setup gate ---------- */
-  .gate {
-    max-width: 420px;
-    margin: 80px auto;
-    text-align: center;
-  }
-  .gate .card { text-align: left; }
-  .gate input {
-    width: 100%;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 14px;
-    padding: 12px 14px;
-    margin: 14px 0;
-  }
-  .gate input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .gate-error { color: var(--danger); font-size: 13px; font-family: var(--mono); min-height: 18px; margin-top: -4px; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
-  .hidden { display: none !important; }
+    /* ---------- Prompt editor ---------- */
+    textarea {
+      width: 100%;
+      min-height: 280px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13.5px;
+      line-height: 1.65;
+      padding: 16px;
+      resize: vertical;
+    }
 
-  .toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%) translateY(0);
-    background: var(--surface-raised);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    padding: 10px 18px;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    opacity: 0;
-    transition: opacity 0.2s, transform 0.2s;
-    pointer-events: none;
-    z-index: 50;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
-  .toast.error { border-color: var(--danger); color: var(--danger); }
-  .toast.success { border-color: var(--whatsapp-green); color: var(--whatsapp-green); }
-  .auth-tabs { display: flex; gap: 8px; margin-bottom: 16px; margin-top: 18px; }
-  .auth-tab { flex: 1; padding: 8px 12px; background: var(--surface-raised); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; cursor: pointer; text-align: center; font-size: 13px; font-weight: 500; transition: all 0.2s; }
-  .auth-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-</style></head>
+    textarea:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .prompt-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .save-msg {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--whatsapp-green);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .save-msg.show {
+      opacity: 1;
+    }
+
+    .char-count {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ---------- Toggles ---------- */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .toggle-row:last-child {
+      border-bottom: none;
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .toggle-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: var(--border);
+      border-radius: 100px;
+      transition: background 0.15s;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: var(--text);
+      border-radius: 50%;
+      transition: transform 0.15s;
+    }
+
+    input:checked+.slider {
+      background: var(--whatsapp-green);
+    }
+
+    input:checked+.slider::before {
+      transform: translateX(20px);
+      background: #fff;
+    }
+
+    .switch input:focus-visible+.slider {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ---------- Whitelist ---------- */
+    .whitelist-input-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .whitelist-input-row input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 9px 12px;
+    }
+
+    .whitelist-input-row input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 10px 6px 12px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+    }
+
+    .chip button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 0;
+      width: 16px;
+      height: 16px;
+      line-height: 1;
+      font-size: 14px;
+      border-radius: 50%;
+    }
+
+    .chip button:hover {
+      color: var(--danger);
+    }
+
+    .empty-note {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 8px 0;
+    }
+
+    /* ---------- Holding reply ---------- */
+    .holding-input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13.5px;
+      padding: 10px 12px;
+      margin-top: 8px;
+    }
+
+    .holding-input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ---------- Setup gate ---------- */
+    .gate {
+      max-width: 420px;
+      margin: 80px auto;
+      text-align: center;
+    }
+
+    .gate .card {
+      text-align: left;
+    }
+
+    .gate input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      padding: 12px 14px;
+      margin: 14px 0;
+    }
+
+    .gate input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .gate-error {
+      color: var(--danger);
+      font-size: 13px;
+      font-family: var(--mono);
+      min-height: 18px;
+      margin-top: -4px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 10px 18px;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-6px);
+    }
+
+    .toast.error {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .toast.success {
+      border-color: var(--whatsapp-green);
+      color: var(--whatsapp-green);
+    }
+
+    .auth-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      margin-top: 18px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .auth-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+  </style>
+</head>
+
 <body>
 
-<!-- ===== Setup gate: Professional Admin Login ===== -->
-<div class="gate" id="gate">
-  <div style="text-align:center; margin-bottom:24px;">
-    <img src="favicon.png" alt="WhatsApp AI Logo" style="width:72px; height:72px; border-radius:18px; box-shadow:0 0 25px rgba(34,197,94,0.4); margin-bottom:12px;">
-    <p class="eyebrow" style="color:#22c55e; letter-spacing:2px;">// SECURE GATEWAY</p>
-    <h1 style="font-size:28px; background:linear-gradient(135deg, #fff 0%, #a7f3d0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WhatsApp AI Assistant</h1>
-    <p style="color:var(--text-secondary); font-size:13px; margin-top:4px;">Professional AI Engine • Developed by Azhar Khan</p>
-  </div>
-  <div class="card" style="box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.3);">
-    
-    <!-- Empty gate-url ensures app.js automatically connects to the exact domain hosting the web dashboard -->
-    <input type="hidden" id="gate-url" value="">
-
-    <div class="auth-tabs" style="display:none;">
-      <div class="auth-tab active" id="tab-admin">👤 Admin Login</div>
-      <div class="auth-tab" id="tab-phone">📱 WhatsApp Phone</div>
-      <div class="auth-tab" id="tab-key">🔑 Dashboard Key</div>
+  <!-- ===== Setup gate: Professional Admin Login ===== -->
+  <div class="gate" id="gate">
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="favicon.png" alt="WhatsApp AI Logo"
+        style="width:72px; height:72px; border-radius:18px; box-shadow:0 0 25px rgba(34,197,94,0.4); margin-bottom:12px;">
+      <p class="eyebrow" style="color:#22c55e; letter-spacing:2px;">// SECURE GATEWAY</p>
+      <h1
+        style="font-size:28px; background:linear-gradient(135deg, #fff 0%, #a7f3d0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+        WhatsApp AI Assistant</h1>
+      <p style="color:var(--text-secondary); font-size:13px; margin-top:4px;">Professional AI Engine • Developed by
+        Azhar Khan</p>
     </div>
+    <div class="card" style="box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.3);">
 
-    <!-- Admin Login Section (Only Option Shown) -->
-    <div id="section-admin">
-      <h2 style="color:#e2e8f0;">Admin Username</h2>
-      <input type="text" id="gate-admin-user" value="admin" placeholder="Username (default: admin)" autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
-      <h2 style="margin-top:16px; color:#e2e8f0;">Admin Password</h2>
-      <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)" autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
-      <div class="gate-error" id="gate-error-admin"></div>
-      <button class="primary full" id="gate-admin-submit" style="margin-top:20px; height:46px; font-size:15px; font-weight:700; box-shadow:0 4px 15px rgba(34,197,94,0.4);">Unlock Assistant →</button>
-    </div>
+      <!-- Empty gate-url ensures app.js automatically connects to the exact domain hosting the web dashboard -->
+      <input type="hidden" id="gate-url" value="">
 
-    <!-- Hidden Phone/Key sections to preserve app.js compatibility -->
-    <div id="section-phone" style="display:none;">
-      <input type="tel" id="gate-phone">
-      <input type="text" id="gate-otp">
-      <div id="gate-error-phone"></div>
-      <button id="gate-send-otp"></button>
-      <button id="gate-verify-otp"></button>
-    </div>
-    <div id="section-key" style="display:none;">
-      <input type="password" id="gate-key">
-      <div id="gate-error"></div>
-      <button id="gate-submit"></button>
-    </div>
-  </div>
-  <div style="text-align:center; margin-top:20px; font-size:12px; color:var(--text-muted);">
-    ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant
-  </div>
-</div>
-
-<!-- ===== Main dashboard ===== -->
-<div class="wrap hidden" id="dashboard">
-  <header style="border-bottom:1px solid rgba(34,197,94,0.2); padding-bottom:16px; margin-bottom:24px;">
-    <div style="display:flex; align-items:center; gap:14px;">
-      <img src="favicon.png" alt="Icon" style="width:42px; height:42px; border-radius:10px; box-shadow:0 0 12px rgba(34,197,94,0.3);">
-      <div class="title-block">
-        <p class="eyebrow" style="color:#22c55e;">// autonomous ai engine</p>
-        <h1 style="font-size:22px; background:linear-gradient(90deg, #fff, #86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">WhatsApp AI Assistant</h1>
-      </div>
-    </div>
-    <div class="global-status">
-      <span class="dot off" id="header-dot"></span>
-      <span id="header-status">checking…</span>
-      <button id="disconnect-btn" style="padding:5px 12px; font-size:11px; margin-left:10px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:6px; font-weight:600; cursor:pointer;">Logout</button>
-    </div>
-  </header>
-
-  <div class="grid">
-    <!-- LEFT COLUMN -->
-    <div style="display:flex; flex-direction:column; gap:20px;">
-
-      <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
-        <h2 style="color:#86efac;">WhatsApp Gateway Connection</h2>
-        <div class="qr-stage" id="qr-stage">
-          <div class="qr-placeholder" id="qr-placeholder">
-            waiting for backend<span class="cursor"></span>
-          </div>
-        </div>
-        <div class="conn-meta" id="conn-meta"></div>
-
-        <div id="qr-pairing-section" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
-          <div style="font-size:12px; font-weight:600; color:#86efac; margin-bottom:8px;">📱 OR LINK WITH PHONE NUMBER (NO CAMERA NEEDED)</div>
-          <div style="display:flex; gap:8px;">
-            <input type="tel" id="pairing-phone" placeholder="e.g. +14155551234" autocomplete="off" style="flex:1; margin:0;">
-            <button class="primary" id="pairing-btn" style="padding:0 14px; white-space:nowrap;">Get Code</button>
-          </div>
-          <div id="pairing-result" style="display:none; margin-top:10px; background:var(--input-bg); border:1px dashed var(--primary); border-radius:8px; padding:12px; text-align:center;">
-            <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Enter on phone (Linked Devices → Link with phone number):</div>
-            <div id="pairing-code-display" style="font-size:22px; font-weight:800; color:var(--primary); letter-spacing:3px;"></div>
-          </div>
-          <div class="gate-error" id="pairing-error" style="margin-top:6px;"></div>
-        </div>
+      <div class="auth-tabs" style="display:none;">
+        <div class="auth-tab active" id="tab-admin">👤 Admin Login</div>
+        <div class="auth-tab" id="tab-phone">📱 WhatsApp Phone</div>
+        <div class="auth-tab" id="tab-key">🔑 Dashboard Key</div>
       </div>
 
-      <div class="card">
-        <h2>Live Event Stream</h2>
-        <div class="logs" id="logs"></div>
+      <!-- Admin Login Section (Only Option Shown) -->
+      <div id="section-admin">
+        <h2 style="color:#e2e8f0;">Admin Username</h2>
+        <input type="text" id="gate-admin-user" value="admin" placeholder="Username (default: admin)" autocomplete="off"
+          style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
+        <h2 style="margin-top:16px; color:#e2e8f0;">Admin Password</h2>
+        <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)"
+          autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
+        <div class="gate-error" id="gate-error-admin"></div>
+        <button class="primary full" id="gate-admin-submit"
+          style="margin-top:20px; height:46px; font-size:15px; font-weight:700; box-shadow:0 4px 15px rgba(34,197,94,0.4);">Unlock
+          Assistant →</button>
       </div>
 
+      <!-- Hidden Phone/Key sections to preserve app.js compatibility -->
+      <div id="section-phone" style="display:none;">
+        <input type="tel" id="gate-phone">
+        <input type="text" id="gate-otp">
+        <div id="gate-error-phone"></div>
+        <button id="gate-send-otp"></button>
+        <button id="gate-verify-otp"></button>
+      </div>
+      <div id="section-key" style="display:none;">
+        <input type="password" id="gate-key">
+        <div id="gate-error"></div>
+        <button id="gate-submit"></button>
+      </div>
     </div>
-
-    <!-- RIGHT COLUMN -->
-    <div style="display:flex; flex-direction:column; gap:20px;">
-
-      <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
-        <h2 style="color:#86efac;">AI Brain Prompt</h2>
-        <textarea id="prompt-editor" spellcheck="false" placeholder="Loading…" style="border:1px solid rgba(34,197,94,0.3);"></textarea>
-        <div class="prompt-footer">
-          <span class="char-count" id="char-count">0 chars</span>
-          <div style="display:flex; align-items:center; gap:14px;">
-            <span class="save-msg" id="prompt-saved">✓ saved</span>
-            <button class="primary" id="prompt-save-btn">Save prompt</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Holding Reply</h2>
-        <div class="toggle-sub">Sent when something needs your personal input — meetings, money, anything you'd want to handle yourself.</div>
-        <input type="text" class="holding-input" id="holding-reply-input" placeholder="Yeh wala main personally dekh ke reply karunga, thoda wait karo">
-        <div class="prompt-footer">
-          <span></span>
-          <button id="holding-save-btn">Save</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Security Whitelist</h2>
-        <div class="whitelist-input-row">
-          <input type="text" id="whitelist-input" placeholder="919876543210 (with country code, no +)">
-          <button class="primary" id="whitelist-add-btn">Add</button>
-        </div>
-        <div class="chip-list" id="whitelist-chips"></div>
-        <div class="empty-note hidden" id="whitelist-empty">No numbers yet — nobody can message the bot until you add at least one.</div>
-      </div>
-
+    <div style="text-align:center; margin-top:20px; font-size:12px; color:var(--text-muted);">
+      ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant
     </div>
   </div>
 
-  <footer style="margin-top:36px; padding:20px 0; border-top:1px solid rgba(255,255,255,0.08); text-align:center; font-size:13px; color:var(--text-secondary);">
-    ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant • Powered by Autonomous AI
-  </footer>
-</div>
+  <!-- ===== Main dashboard ===== -->
+  <div class="wrap hidden" id="dashboard">
+    <header style="border-bottom:1px solid rgba(34,197,94,0.2); padding-bottom:16px; margin-bottom:24px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <img src="favicon.png" alt="Icon"
+          style="width:42px; height:42px; border-radius:10px; box-shadow:0 0 12px rgba(34,197,94,0.3);">
+        <div class="title-block">
+          <p class="eyebrow" style="color:#22c55e;">// autonomous ai engine</p>
+          <h1
+            style="font-size:22px; background:linear-gradient(90deg, #fff, #86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
+            WhatsApp AI Assistant</h1>
+        </div>
+      </div>
+      <div class="global-status">
+        <span class="dot off" id="header-dot"></span>
+        <span id="header-status">checking…</span>
+        <button id="disconnect-btn"
+          style="padding:5px 12px; font-size:11px; margin-left:10px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:6px; font-weight:600; cursor:pointer;">Logout</button>
+      </div>
+    </header>
 
-<div class="toast" id="toast"></div>
+    <div class="grid">
+      <!-- LEFT COLUMN -->
+      <div style="display:flex; flex-direction:column; gap:20px;">
 
-<script src="app.js"></script>
+        <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
+          <h2 style="color:#86efac;">WhatsApp Gateway Connection</h2>
+          <div class="qr-stage" id="qr-stage">
+            <div class="qr-placeholder" id="qr-placeholder">
+              waiting for backend<span class="cursor"></span>
+            </div>
+          </div>
+          <div class="conn-meta" id="conn-meta"></div>
+          <button id="reconnect-btn" class="primary" style="margin-top:12px; padding:8px 16px; font-size:13px;">Generate new QR</button>
+
+          <div id="qr-pairing-section" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
+            <div style="font-size:12px; font-weight:600; color:#86efac; margin-bottom:8px;">📱 LINK WITH PHONE NUMBER
+            </div>
+            <div style="display:flex; gap:8px;">
+              <input type="tel" id="pairing-phone" placeholder="e.g. +14155551234" autocomplete="off"
+                style="flex:1; margin:0;">
+              <button class="primary" id="pairing-btn" style="padding:0 14px; white-space:nowrap;">Get Code</button>
+            </div>
+            <div id="pairing-result"
+              style="display:none; margin-top:10px; background:var(--input-bg); border:1px dashed var(--primary); border-radius:8px; padding:12px; text-align:center;">
+              <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Enter on phone (Linked Devices →
+                Link with phone number):</div>
+              <div id="pairing-code-display"
+                style="font-size:22px; font-weight:800; color:var(--primary); letter-spacing:3px;"></div>
+            </div>
+            <div class="gate-error" id="pairing-error" style="margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Bot Control & Settings</h2>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Bot Master Switch</div>
+              <div class="toggle-sub">Turn automated AI responses ON or OFF instantly</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-enabled">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div>
+              <div class="toggle-label">Enforce Whitelist Mode</div>
+              <div class="toggle-sub">Only reply to approved numbers below</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-whitelist">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Live Event Stream</h2>
+          <div class="logs" id="logs"></div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div style="display:flex; flex-direction:column; gap:20px;">
+
+        <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
+          <h2 style="color:#86efac;">AI Brain Prompt</h2>
+          <textarea id="prompt-editor" spellcheck="false" placeholder="Loading…"
+            style="border:1px solid rgba(34,197,94,0.3);"></textarea>
+          <div class="prompt-footer">
+            <span class="char-count" id="char-count">0 chars</span>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span class="save-msg" id="prompt-saved">✓ saved</span>
+              <button class="primary" id="prompt-save-btn">Save prompt</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Holding Reply</h2>
+          <div class="toggle-sub">Sent when something needs your personal input — meetings, money, anything you'd want
+            to handle yourself.</div>
+          <input type="text" class="holding-input" id="holding-reply-input"
+            placeholder="Yeh wala main personally dekh ke reply karunga, thoda wait karo">
+          <div class="prompt-footer">
+            <span></span>
+            <button id="holding-save-btn">Save</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Security Whitelist</h2>
+          <div class="whitelist-input-row">
+            <input type="text" id="whitelist-input" placeholder="919876543210 (with country code, no +)">
+            <button class="primary" id="whitelist-add-btn">Add</button>
+          </div>
+          <div class="chip-list" id="whitelist-chips"></div>
+          <div class="empty-note hidden" id="whitelist-empty">No numbers yet — nobody can message the bot until you add
+            at least one.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <footer
+      style="margin-top:36px; padding:20px 0; border-top:1px solid rgba(255,255,255,0.08); text-align:center; font-size:13px; color:var(--text-secondary);">
+      ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant
+      • Powered by Autonomous AI
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
 </body>
+
 </html>

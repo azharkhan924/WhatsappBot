@@ -38,34 +38,34 @@ function getCleanGateUrl() {
   return rawUrl.replace(/\/+$/, '').replace(/\/(dashboard|static)$/i, '');
 }
 
-$('tab-admin').addEventListener('click', () => {
-  $('tab-admin').classList.add('active');
-  $('tab-phone').classList.remove('active');
-  $('tab-key').classList.remove('active');
-  $('section-admin').style.display = 'block';
-  $('section-phone').style.display = 'none';
-  $('section-key').style.display = 'none';
+$('tab-admin')?.addEventListener('click', () => {
+  if ($('tab-admin')) $('tab-admin').classList.add('active');
+  if ($('tab-phone')) $('tab-phone').classList.remove('active');
+  if ($('tab-key')) $('tab-key').classList.remove('active');
+  if ($('section-admin')) $('section-admin').style.display = 'block';
+  if ($('section-phone')) $('section-phone').style.display = 'none';
+  if ($('section-key')) $('section-key').style.display = 'none';
 });
 
-$('tab-phone').addEventListener('click', () => {
-  $('tab-phone').classList.add('active');
-  $('tab-admin').classList.remove('active');
-  $('tab-key').classList.remove('active');
-  $('section-phone').style.display = 'block';
-  $('section-admin').style.display = 'none';
-  $('section-key').style.display = 'none';
+$('tab-phone')?.addEventListener('click', () => {
+  if ($('tab-phone')) $('tab-phone').classList.add('active');
+  if ($('tab-admin')) $('tab-admin').classList.remove('active');
+  if ($('tab-key')) $('tab-key').classList.remove('active');
+  if ($('section-phone')) $('section-phone').style.display = 'block';
+  if ($('section-admin')) $('section-admin').style.display = 'none';
+  if ($('section-key')) $('section-key').style.display = 'none';
 });
 
-$('tab-key').addEventListener('click', () => {
-  $('tab-key').classList.add('active');
-  $('tab-admin').classList.remove('active');
-  $('tab-phone').classList.remove('active');
-  $('section-key').style.display = 'block';
-  $('section-admin').style.display = 'none';
-  $('section-phone').style.display = 'none';
+$('tab-key')?.addEventListener('click', () => {
+  if ($('tab-key')) $('tab-key').classList.add('active');
+  if ($('tab-admin')) $('tab-admin').classList.remove('active');
+  if ($('tab-phone')) $('tab-phone').classList.remove('active');
+  if ($('section-key')) $('section-key').style.display = 'block';
+  if ($('section-admin')) $('section-admin').style.display = 'none';
+  if ($('section-phone')) $('section-phone').style.display = 'none';
 });
 
-$('gate-admin-submit').addEventListener('click', async () => {
+$('gate-admin-submit')?.addEventListener('click', async () => {
   const url = getCleanGateUrl();
   const username = $('gate-admin-user').value.trim();
   const password = $('gate-admin-pass').value.trim();
@@ -112,7 +112,7 @@ $('gate-admin-submit').addEventListener('click', async () => {
   }
 });
 
-$('gate-send-otp').addEventListener('click', async () => {
+$('gate-send-otp')?.addEventListener('click', async () => {
   const url = getCleanGateUrl();
   const phone = $('gate-phone').value.trim();
   $('gate-error-phone').textContent = '';
@@ -153,7 +153,7 @@ $('gate-send-otp').addEventListener('click', async () => {
   }
 });
 
-$('gate-verify-otp').addEventListener('click', async () => {
+$('gate-verify-otp')?.addEventListener('click', async () => {
   const url = getCleanGateUrl();
   const phone = $('gate-phone').value.trim();
   const otp = $('gate-otp').value.trim();
@@ -200,7 +200,7 @@ $('gate-verify-otp').addEventListener('click', async () => {
   }
 });
 
-$('gate-submit').addEventListener('click', async () => {
+$('gate-submit')?.addEventListener('click', async () => {
   let rawUrl = $('gate-url').value.trim();
   if (!rawUrl && window.location.origin && !window.location.origin.startsWith('file:')) {
     rawUrl = window.location.origin;
@@ -334,17 +334,22 @@ function startPollFallback() {
 }
 
 // ===== Reconnect / new QR =====
-$('reconnect-btn').addEventListener('click', async () => {
-  $('reconnect-btn').disabled = true;
-  $('reconnect-btn').textContent = 'Requesting…';
+$('reconnect-btn')?.addEventListener('click', async () => {
+  const btn = $('reconnect-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Requesting…';
+  }
   try {
     await api('/api/reconnect', { method: 'POST' });
     toast('Requested a new session — QR incoming', 'success');
   } catch (err) {
     toast('Could not reach backend', 'error');
   } finally {
-    $('reconnect-btn').disabled = false;
-    $('reconnect-btn').textContent = 'Generate new QR';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Generate new QR';
+    }
   }
 });
 
@@ -359,27 +364,30 @@ async function loadConfig() {
 }
 
 function renderConfig(cfg) {
-  $('prompt-editor').value = cfg.systemPrompt || '';
+  if ($('prompt-editor')) $('prompt-editor').value = cfg.systemPrompt || '';
   updateCharCount();
-  $('toggle-enabled').checked = !!cfg.botEnabled;
-  $('toggle-whitelist').checked = !!cfg.whitelistEnabled;
-  $('holding-reply-input').value = cfg.holdingReply || '';
+  if ($('toggle-enabled')) $('toggle-enabled').checked = !!cfg.botEnabled;
+  if ($('toggle-whitelist')) $('toggle-whitelist').checked = !!cfg.whitelistEnabled;
+  if ($('holding-reply-input')) $('holding-reply-input').value = cfg.holdingReply || '';
   renderWhitelist(cfg.whitelist || []);
 }
 
 function updateCharCount() {
-  $('char-count').textContent = `${$('prompt-editor').value.length} chars`;
+  const el = $('prompt-editor');
+  if (el && $('char-count')) {
+    $('char-count').textContent = `${el.value.length} chars`;
+  }
 }
 
 // ===== System prompt =====
-$('prompt-editor').addEventListener('input', () => {
+$('prompt-editor')?.addEventListener('input', () => {
   promptDirty = true;
   updateCharCount();
 });
 
-$('prompt-save-btn').addEventListener('click', async () => {
-  const systemPrompt = $('prompt-editor').value;
-  $('prompt-save-btn').disabled = true;
+$('prompt-save-btn')?.addEventListener('click', async () => {
+  const systemPrompt = $('prompt-editor')?.value || '';
+  if ($('prompt-save-btn')) $('prompt-save-btn').disabled = true;
   try {
     currentConfig = await api('/api/config', {
       method: 'PUT',
@@ -387,12 +395,14 @@ $('prompt-save-btn').addEventListener('click', async () => {
     });
     promptDirty = false;
     const saved = $('prompt-saved');
-    saved.classList.add('show');
-    setTimeout(() => saved.classList.remove('show'), 1800);
+    if (saved) {
+      saved.classList.add('show');
+      setTimeout(() => saved.classList.remove('show'), 1800);
+    }
   } catch (err) {
     toast('Save failed — check backend connection', 'error');
   } finally {
-    $('prompt-save-btn').disabled = false;
+    if ($('prompt-save-btn')) $('prompt-save-btn').disabled = false;
   }
 });
 
@@ -405,7 +415,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 // ===== Bot enabled toggle =====
-$('toggle-enabled').addEventListener('change', async (e) => {
+$('toggle-enabled')?.addEventListener('change', async (e) => {
   const botEnabled = e.target.checked;
   try {
     currentConfig = await api('/api/config', {
@@ -420,7 +430,7 @@ $('toggle-enabled').addEventListener('change', async (e) => {
 });
 
 // ===== Whitelist enabled toggle =====
-$('toggle-whitelist').addEventListener('change', async (e) => {
+$('toggle-whitelist')?.addEventListener('change', async (e) => {
   const whitelistEnabled = e.target.checked;
   try {
     currentConfig = await api('/api/config', {
@@ -435,8 +445,8 @@ $('toggle-whitelist').addEventListener('change', async (e) => {
 });
 
 // ===== Holding reply =====
-$('holding-save-btn').addEventListener('click', async () => {
-  const holdingReply = $('holding-reply-input').value.trim();
+$('holding-save-btn')?.addEventListener('click', async () => {
+  const holdingReply = $('holding-reply-input')?.value.trim() || '';
   if (!holdingReply) {
     toast('Holding reply can\'t be empty', 'error');
     return;
@@ -487,8 +497,9 @@ async function saveWhitelist(list) {
   }
 }
 
-$('whitelist-add-btn').addEventListener('click', () => {
+$('whitelist-add-btn')?.addEventListener('click', () => {
   const input = $('whitelist-input');
+  if (!input) return;
   const raw = input.value.trim().replace(/[^0-9]/g, '');
   if (!raw || raw.length < 10) {
     toast('Enter a valid number with country code', 'error');
@@ -505,8 +516,8 @@ $('whitelist-add-btn').addEventListener('click', () => {
   saveWhitelist([...list]);
 });
 
-$('whitelist-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') $('whitelist-add-btn').click();
+$('whitelist-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('whitelist-add-btn')?.click();
 });
 
 function removeFromWhitelist(number) {
