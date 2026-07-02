@@ -38,18 +38,78 @@ function getCleanGateUrl() {
   return rawUrl.replace(/\/+$/, '').replace(/\/(dashboard|static)$/i, '');
 }
 
+$('tab-admin').addEventListener('click', () => {
+  $('tab-admin').classList.add('active');
+  $('tab-phone').classList.remove('active');
+  $('tab-key').classList.remove('active');
+  $('section-admin').style.display = 'block';
+  $('section-phone').style.display = 'none';
+  $('section-key').style.display = 'none';
+});
+
 $('tab-phone').addEventListener('click', () => {
   $('tab-phone').classList.add('active');
+  $('tab-admin').classList.remove('active');
   $('tab-key').classList.remove('active');
   $('section-phone').style.display = 'block';
+  $('section-admin').style.display = 'none';
   $('section-key').style.display = 'none';
 });
 
 $('tab-key').addEventListener('click', () => {
   $('tab-key').classList.add('active');
+  $('tab-admin').classList.remove('active');
   $('tab-phone').classList.remove('active');
   $('section-key').style.display = 'block';
+  $('section-admin').style.display = 'none';
   $('section-phone').style.display = 'none';
+});
+
+$('gate-admin-submit').addEventListener('click', async () => {
+  const url = getCleanGateUrl();
+  const username = $('gate-admin-user').value.trim();
+  const password = $('gate-admin-pass').value.trim();
+  $('gate-error-admin').textContent = '';
+
+  if (!url || !username || !password) {
+    $('gate-error-admin').textContent = 'All fields are required.';
+    return;
+  }
+
+  $('gate-admin-submit').disabled = true;
+  $('gate-admin-submit').textContent = 'Logging in…';
+
+  try {
+    let res = await fetch(`${url}/api/auth/admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (res.status === 404) {
+      res = await fetch(`${url}/auth/admin-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+    }
+    const data = await res.json();
+    if (!res.ok || !data.success || !data.dashboardKey) {
+      throw new Error(data.error || data.message || 'Invalid username or password.');
+    }
+
+    API_BASE = url;
+    DASHBOARD_KEY = data.dashboardKey;
+    localStorage.setItem('bot_api_base', API_BASE);
+    localStorage.setItem('bot_dashboard_key', DASHBOARD_KEY);
+
+    toast('Logged in successfully!', 'success');
+    showDashboard();
+    startSession();
+  } catch (err) {
+    $('gate-error-admin').textContent = err.message;
+    $('gate-admin-submit').disabled = false;
+    $('gate-admin-submit').textContent = 'Admin Login';
+  }
 });
 
 $('gate-send-otp').addEventListener('click', async () => {

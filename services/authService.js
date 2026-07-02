@@ -89,7 +89,35 @@ async function verifyOtp(rawPhone, rawOtp) {
   };
 }
 
+async function adminLogin(username, password) {
+  const user = String(username || '').trim();
+  const pass = String(password || '').trim();
+
+  if (!user || !pass) {
+    const err = new Error('Username and password are required.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const expectedUser = config.security.adminUsername;
+  const expectedPass = config.security.adminPassword;
+  const dashboardKey = config.security.dashboardKey;
+
+  if (user === expectedUser && (pass === expectedPass || pass === dashboardKey)) {
+    logger.info(`Successful Admin login for user: ${user}`);
+    return {
+      success: true,
+      dashboardKey: dashboardKey,
+    };
+  }
+
+  const err = new Error('Invalid admin username or password.');
+  err.statusCode = 401;
+  throw err;
+}
+
 module.exports = {
   requestOtp,
   verifyOtp,
+  adminLogin,
 };

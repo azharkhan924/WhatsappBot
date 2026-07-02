@@ -124,6 +124,16 @@ async function postPairingCode(req, res, next) {
   }
 }
 
+async function postAdminLogin(req, res, next) {
+  try {
+    const { username, password } = req.body || {};
+    const result = await authService.adminLogin(username, password);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getRoot,
   getHealth,
@@ -138,4 +148,5 @@ module.exports = {
   postRequestOtp,
   postVerifyOtp,
   postPairingCode,
+  postAdminLogin,
 };

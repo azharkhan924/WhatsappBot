@@ -24,9 +24,10 @@ router.post(['/api/reconnect', '/reconnect'], dashboardAuth, controller.postReco
 router.get(['/api/config', '/config'], dashboardAuth, controller.getConfig);
 router.put(['/api/config', '/config'], dashboardAuth, controller.putConfig);
 
-// Phone Number OTP Login routes
+// Phone Number OTP Login & Admin Login routes
 router.post(['/api/auth/request-otp', '/auth/request-otp'], controller.postRequestOtp);
 router.post(['/api/auth/verify-otp', '/auth/verify-otp'], controller.postVerifyOtp);
+router.post(['/api/auth/admin-login', '/auth/admin-login'], controller.postAdminLogin);
 
 // WhatsApp Pairing Code route
 router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.postPairingCode);

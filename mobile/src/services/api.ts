@@ -119,6 +119,27 @@ class ApiService {
     return data;
   }
 
+  async adminLogin(url: string, username: string, password: string): Promise<{ success: boolean; dashboardKey: string }> {
+    const cleanUrl = url.replace(/\/+$/, '').replace(/\/(dashboard|static)$/i, '');
+    let res = await fetch(`${cleanUrl}/api/auth/admin-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (res.status === 404) {
+      res = await fetch(`${cleanUrl}/auth/admin-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+    }
+    const data = await res.json();
+    if (!res.ok || !data.success || !data.dashboardKey) {
+      throw new Error(data.error || data.message || 'Invalid username or password.');
+    }
+    return data;
+  }
+
   async requestPairingCode(phone: string): Promise<{ success: boolean; pairingCode: string }> {
     return this.fetchApi('/api/pairing-code', {
       method: 'POST',

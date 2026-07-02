@@ -87,7 +87,9 @@ const config = {
     rateLimitWindowMs: toInt(process.env.RATE_LIMIT_WINDOW_MS, 60000),
     rateLimitMaxRequests: toInt(process.env.RATE_LIMIT_MAX_REQUESTS, 30),
     apiKey: process.env.API_KEY || '',
-    dashboardKey: process.env.DASHBOARD_KEY || process.env.API_KEY || '',
+    dashboardKey: process.env.DASHBOARD_KEY || process.env.API_KEY || 'admin-dashboard-key',
+    adminUsername: process.env.ADMIN_USERNAME || 'admin',
+    adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   },
 
   logging: {

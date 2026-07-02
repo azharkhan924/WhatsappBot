@@ -436,12 +436,23 @@
     <input type="text" id="gate-url" placeholder="https://your-bot-backend.up.railway.app" autocomplete="off">
     
     <div class="auth-tabs">
-      <div class="auth-tab active" id="tab-phone">📱 WhatsApp Phone</div>
+      <div class="auth-tab active" id="tab-admin">👤 Admin Login</div>
+      <div class="auth-tab" id="tab-phone">📱 WhatsApp Phone</div>
       <div class="auth-tab" id="tab-key">🔑 Dashboard Key</div>
     </div>
 
+    <!-- Admin Login Section -->
+    <div id="section-admin">
+      <h2>Admin Username</h2>
+      <input type="text" id="gate-admin-user" value="admin" placeholder="Username (default: admin)" autocomplete="off">
+      <h2 style="margin-top:12px;">Admin Password</h2>
+      <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)" autocomplete="off">
+      <div class="gate-error" id="gate-error-admin"></div>
+      <button class="primary full" id="gate-admin-submit" style="margin-top:12px;">Admin Login</button>
+    </div>
+
     <!-- Phone Login Section -->
-    <div id="section-phone">
+    <div id="section-phone" style="display:none;">
       <h2>Your Phone Number</h2>
       <input type="tel" id="gate-phone" placeholder="e.g. +14155551234" autocomplete="off">
       <div id="otp-group" style="display:none; margin-top:12px;">
