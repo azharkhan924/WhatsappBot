@@ -463,6 +463,8 @@ $('disconnect-btn')?.addEventListener('click', () => {
   if (socket) socket.disconnect();
   clearInterval(pollTimer);
   showGate();
+});
+
 // ===== Pairing Code (Link with phone number) =====
 $('pairing-btn')?.addEventListener('click', async () => {
   const phone = $('pairing-phone').value.trim();
