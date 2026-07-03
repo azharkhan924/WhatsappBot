@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WhatsApp AI Assistant — Enterprise AI Powered by Custom System Prompts</title>
+<title>WhatsApp AI Assistant — Enterprise Autonomous AI Powered by Custom System Prompts</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -363,7 +363,7 @@
   .chat-info .status { font-size: 11.5px; opacity: 0.85; }
   .header-right { display: flex; gap: 16px; align-items: center; font-size: 18px; opacity: 0.9; }
 
-  /* Chat Messages Body */
+  /* Chat Body with Pre-Rendered Visible Messages */
   .chat-body {
     flex: 1;
     padding: 16px 14px;
@@ -653,8 +653,8 @@
       </p>
 
       <div class="cta-row">
-        <!-- Direct APK link with .apk extension and JS download helper -->
-        <a id="download-apk-btn" class="btn-download" href="https://github.com/azharkhan924/WA-Assistant-DownloadPage/releases/download/v1.0.0/WhatsApp-AI-Assistant.apk" download="WhatsApp-AI-Assistant.apk">
+        <!-- Direct local/hosted APK link with verified .apk file -->
+        <a id="download-apk-btn" class="btn-download" href="WhatsApp-AI-Assistant.apk" download="WhatsApp-AI-Assistant.apk">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
           Download APK Installer
         </a>
@@ -674,7 +674,7 @@
         </div>
         <div class="meta-item">
           <span class="meta-label">AI Engine</span>
-          <span class="meta-val">Google Gemini / OpenAI</span>
+          <span class="meta-val">Advanced Neural LLM</span>
         </div>
         <div class="meta-item">
           <span class="meta-label">Pairing Method</span>
@@ -720,10 +720,13 @@
             </div>
           </div>
 
-          <!-- Chat Body -->
+          <!-- Chat Body with Pre-Rendered Visible Messages -->
           <div class="chat-body" id="chat-messages">
             <div class="date-divider">TODAY</div>
-            <!-- Dynamic Messages injected by JS -->
+            <div class="bubble in" style="animation-delay:0s">Hello, we are experiencing an issue configuring our API webhook endpoint. <div class="msg-meta">10:12 AM</div></div>
+            <div class="bubble out" style="animation-delay:0.15s">Welcome to Apex Cloud Support. I would be happy to assist you. Could you confirm if you are receiving a 401 Unauthorized or a 500 status code? <div class="msg-meta"><span class="ticks">✓✓</span> 10:13 AM</div></div>
+            <div class="bubble in" style="animation-delay:0.3s">We are getting a 401 Unauthorized when sending the payload. <div class="msg-meta">10:14 AM</div></div>
+            <div class="bubble out" style="animation-delay:0.45s">Thank you for confirming. Please verify that your X-API-Key header matches the secret generated in your dashboard settings. Let me know if you need the verification documentation link! <div class="msg-meta"><span class="ticks">✓✓</span> 10:15 AM</div></div>
           </div>
 
           <!-- Chat Input Bar -->
@@ -860,7 +863,7 @@
     <div class="stack-row">
       <div class="chip">Node.js Engine</div>
       <div class="chip">whatsapp-web.js</div>
-      <div class="chip">Google Gemini AI</div>
+      <div class="chip">Custom LLM Neural Engine</div>
       <div class="chip">React Admin Dashboard</div>
       <div class="chip">Android Background Service</div>
     </div>
@@ -917,7 +920,9 @@
   function switchScenario(key) {
     const tabs = document.querySelectorAll(".phone-tab");
     tabs.forEach(t => t.classList.remove("active"));
-    event.target.classList.add("active");
+    if (event && event.target && event.target.classList) {
+      event.target.classList.add("active");
+    }
 
     const sc = scenarios[key];
     document.getElementById("mock-name").textContent = sc.name;
@@ -930,23 +935,20 @@
       const div = document.createElement("div");
       div.className = `bubble ${m.type}`;
       div.style.animationDelay = `${idx * 0.15}s`;
-      div.innerHTML = `${m.text} <div class="msg-meta">10:1${idx + 2} AM</div>`;
+      div.innerHTML = `${m.text} <div class="msg-meta">${m.type === 'out' ? '<span class="ticks">✓✓</span> ' : ''}10:1${idx + 2} AM</div>`;
       chatBox.appendChild(div);
     });
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
-  // Initialize default scenario
   window.addEventListener("DOMContentLoaded", () => {
-    switchScenario('support');
-
     // SMART APK DOWNLOAD HELPER
     const downloadBtn = document.getElementById("download-apk-btn");
     const notice = document.getElementById("download-notice");
     if (downloadBtn && notice) {
-      downloadBtn.addEventListener("click", (e) => {
+      downloadBtn.addEventListener("click", () => {
         notice.style.display = "block";
-        notice.innerHTML = "💡 <strong>Downloading WhatsApp-AI-Assistant.apk (~75 MB)...</strong><br>If your browser saves the file without an extension, simply rename it to <code>WhatsApp-AI-Assistant.apk</code> before installing on your Android device.";
+        notice.innerHTML = "💡 <strong>Downloading WhatsApp-AI-Assistant.apk (~75 MB)...</strong><br>Your download is starting immediately.";
       });
     }
   });
