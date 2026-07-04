@@ -22,6 +22,9 @@ const defaultConfig = {
   schedulerTargetChannels: [],
   schedulerAdImageDir: '',
   schedulerAdCaption: '',
+  // Admin alert & AI mute settings
+  adminNotifyNumber: '',
+  autoPauseDurationHours: 12,
 };
 
 let currentConfig = { ...defaultConfig };
@@ -125,6 +128,14 @@ function updateConfig(updates) {
   }
   if (typeof updates.schedulerAdCaption === 'string') {
     currentConfig.schedulerAdCaption = updates.schedulerAdCaption;
+  }
+  if (typeof updates.adminNotifyNumber === 'string') {
+    // Clean to digits only, or empty string
+    currentConfig.adminNotifyNumber = updates.adminNotifyNumber.trim().replace(/[^0-9]/g, '');
+  }
+  if (updates.autoPauseDurationHours !== undefined) {
+    const num = parseInt(updates.autoPauseDurationHours, 10);
+    currentConfig.autoPauseDurationHours = isNaN(num) ? 12 : num;
   }
 
   saveConfigFile();

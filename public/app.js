@@ -395,8 +395,36 @@ function renderConfig(cfg) {
   if ($('toggle-enabled')) $('toggle-enabled').checked = !!cfg.botEnabled;
   if ($('toggle-whitelist')) $('toggle-whitelist').checked = !!cfg.whitelistEnabled;
   if ($('holding-reply-input')) $('holding-reply-input').value = cfg.holdingReply || '';
+  if ($('admin-notify-number')) $('admin-notify-number').value = cfg.adminNotifyNumber || '';
+  if ($('auto-pause-hours')) $('auto-pause-hours').value = cfg.autoPauseDurationHours !== undefined ? cfg.autoPauseDurationHours : 12;
   renderWhitelist(cfg.whitelist || []);
 }
+
+$('admin-notify-number')?.addEventListener('change', async (e) => {
+  const adminNotifyNumber = e.target.value.trim().replace(/[^0-9]/g, '');
+  try {
+    currentConfig = await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify({ adminNotifyNumber }),
+    });
+    toast('Admin notification number updated', 'success');
+  } catch (err) {
+    toast('Failed to update admin notify number', 'error');
+  }
+});
+
+$('auto-pause-hours')?.addEventListener('change', async (e) => {
+  const autoPauseDurationHours = parseInt(e.target.value, 10) || 12;
+  try {
+    currentConfig = await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify({ autoPauseDurationHours }),
+    });
+    toast('Auto-pause duration updated', 'success');
+  } catch (err) {
+    toast('Failed to update auto-pause duration', 'error');
+  }
+});
 
 function updateCharCount() {
   const el = $('prompt-editor');
@@ -883,7 +911,22 @@ async function loadSchedulerStatus() {
     if ($('toggle-scheduler')) $('toggle-scheduler').checked = !!status.enabled;
 
     // Cron
-    if ($('scheduler-cron')) $('scheduler-cron').value = status.cron || '0 9 * * *';
+    const cronExpr = status.cron || '0 9 * * *';
+    if ($('scheduler-cron')) $('scheduler-cron').value = cronExpr;
+
+    // Sync UI clock / interval from cron
+    const parsed = parseCron(cronExpr);
+    if ($('scheduler-mode')) $('scheduler-mode').value = parsed.mode;
+    
+    if (parsed.mode === 'daily') {
+      if ($('scheduler-time')) $('scheduler-time').value = parsed.time;
+      if ($('scheduler-daily-box')) $('scheduler-daily-box').style.display = 'flex';
+      if ($('scheduler-interval-box')) $('scheduler-interval-box').style.display = 'none';
+    } else {
+      if ($('scheduler-interval-preset')) $('scheduler-interval-preset').value = parsed.interval;
+      if ($('scheduler-daily-box')) $('scheduler-daily-box').style.display = 'none';
+      if ($('scheduler-interval-box')) $('scheduler-interval-box').style.display = 'flex';
+    }
 
     // Timezone
     if ($('scheduler-timezone-label')) {
@@ -1073,6 +1116,76 @@ function handleResize() {
 }
 window.addEventListener('resize', handleResize);
 handleResize();
+
+// ===== Scheduler clock & interval presets translation =====
+function parseCron(cronExpr) {
+  if (!cronExpr) return { mode: 'daily', time: '09:00', interval: 'hour_1' };
+  
+  const parts = cronExpr.trim().split(/\s+/);
+  if (parts.length !== 5) return { mode: 'daily', time: '09:00', interval: 'hour_1' };
+  
+  // Check for minute interval: */X * * * *
+  if (parts[0].startsWith('*/') && parts[1] === '*' && parts[2] === '*' && parts[3] === '*' && parts[4] === '*') {
+    const mins = parts[0].slice(2);
+    return { mode: 'interval', time: '09:00', interval: `min_${mins}` };
+  }
+  
+  // Check for hour interval: 0 */X * * *
+  if (parts[0] === '0' && parts[1].startsWith('*/') && parts[2] === '*' && parts[3] === '*' && parts[4] === '*') {
+    const hours = parts[1].slice(2);
+    return { mode: 'interval', time: '09:00', interval: `hour_${hours}` };
+  }
+  
+  // Otherwise treat as daily time: mm hh * * *
+  const min = parts[0];
+  const hour = parts[1];
+  if (!isNaN(min) && !isNaN(hour) && parts[2] === '*' && parts[3] === '*' && parts[4] === '*') {
+    const paddedHour = hour.padStart(2, '0');
+    const paddedMin = min.padStart(2, '0');
+    return { mode: 'daily', time: `${paddedHour}:${paddedMin}`, interval: 'hour_1' };
+  }
+  
+  return { mode: 'daily', time: '09:00', interval: 'hour_1' };
+}
+
+function updateHiddenCron() {
+  const mode = $('scheduler-mode')?.value || 'daily';
+  let cronVal = '0 9 * * *';
+  
+  if (mode === 'daily') {
+    const timeVal = $('scheduler-time')?.value || '09:00';
+    const [hours, mins] = timeVal.split(':');
+    if (hours !== undefined && mins !== undefined) {
+      cronVal = `${parseInt(mins, 10)} ${parseInt(hours, 10)} * * *`;
+    }
+  } else {
+    const intervalVal = $('scheduler-interval-preset')?.value || 'hour_1';
+    if (intervalVal.startsWith('min_')) {
+      const mins = intervalVal.split('_')[1];
+      cronVal = `*/${mins} * * * *`;
+    } else if (intervalVal.startsWith('hour_')) {
+      const hours = intervalVal.split('_')[1];
+      cronVal = `0 */${hours} * * *`;
+    }
+  }
+  
+  if ($('scheduler-cron')) $('scheduler-cron').value = cronVal;
+}
+
+$('scheduler-mode')?.addEventListener('change', (e) => {
+  const mode = e.target.value;
+  if (mode === 'daily') {
+    if ($('scheduler-daily-box')) $('scheduler-daily-box').style.display = 'flex';
+    if ($('scheduler-interval-box')) $('scheduler-interval-box').style.display = 'none';
+  } else {
+    if ($('scheduler-daily-box')) $('scheduler-daily-box').style.display = 'none';
+    if ($('scheduler-interval-box')) $('scheduler-interval-box').style.display = 'flex';
+  }
+  updateHiddenCron();
+});
+
+$('scheduler-time')?.addEventListener('change', updateHiddenCron);
+$('scheduler-interval-preset')?.addEventListener('change', updateHiddenCron);
 
 // ===== Init =====
 function init() {

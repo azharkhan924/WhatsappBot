@@ -41,11 +41,13 @@ const botConfigService = require('./botConfigService');
 const FALLBACK_REPLY = "Sorry, I'm unable to answer right now. Please try again later.";
 
 function loadSystemPrompt() {
-  const basePrompt = botConfigService.getSystemPrompt();
+  let basePrompt = botConfigService.getSystemPrompt();
   const cfg = botConfigService.getConfig();
   if (cfg.holdingReply) {
-    return `${basePrompt}\n\n# Dynamic Holding Reply Instructions\nIf the user asks about meetings, money, personal commitments, or anything requiring personal confirmation, reply with: "${cfg.holdingReply}"`;
+    basePrompt = `${basePrompt}\n\n# Dynamic Holding Reply Instructions\nIf the user asks about meetings, money, personal commitments, or anything requiring personal confirmation, reply with: "${cfg.holdingReply}"`;
   }
+  // Append instruction to offer #human option if user is confused or AI cannot solve the problem
+  basePrompt = `${basePrompt}\n\n# Confusion / Human Agent Handover Instructions\nIf the user seems confused, keeps repeating questions, is frustrated, or explicitly asks to speak with a human or Azhar directly, you MUST politely offer them the choice to pause the AI and request a human response. Instruct them to reply with exactly the word "#human" (with the hash symbol) to pause the bot and notify Azhar. Example: "If you want to pause this AI bot and chat with Azhar directly, please reply with #human."`;
   return basePrompt;
 }
 

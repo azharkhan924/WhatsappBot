@@ -12,6 +12,7 @@ const logger = require('../utils/logger');
 const conversationMemory = require('../memory/conversationMemory');
 const aiService = require('./aiService');
 const botConfigService = require('./botConfigService');
+const muteService = require('./muteService');
 const { handleCommand, isCommand } = require('./commandService');
 
 const SESSION_PATH = path.join(__dirname, '..', 'data', 'session');
@@ -431,6 +432,37 @@ async function handleIncomingMessage(message) {
     return;
   }
 
+  // Check if contact AI replies are muted
+  if (muteService.isUserMuted(userId)) {
+    logger.info(`AI replies muted for ${userId}. Skipping reply.`);
+    return;
+  }
+
+  // Handle #human command to request personal contact and pause AI
+  if (text.toLowerCase() === '#human') {
+    const pauseHours = botCfg.autoPauseDurationHours || 12;
+    muteService.muteUser(userId, pauseHours);
+
+    // Send confirmation to the user
+    const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
+    await sendHumanLikeReply(chat, message, userConfirm);
+
+    logToDashboard(`User +${contactDigits || userId} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
+
+    // Notify the admin if notification number is set
+    if (botCfg.adminNotifyNumber) {
+      const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
+      const adminAlert = `⚠️ *[Admin Alert]*\nUser *+${contactDigits}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
+      try {
+        await client.sendMessage(adminJid, adminAlert);
+        logger.info(`Notified admin at ${adminJid} about human request.`);
+      } catch (err) {
+        logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
+      }
+    }
+    return;
+  }
+
   if (botCfg.whitelistEnabled) {
     const whitelist = Array.isArray(botCfg.whitelist) ? botCfg.whitelist : [];
     if (whitelist.length === 0) {
@@ -533,6 +565,7 @@ async function sendHumanLikeReply(chat, message, replyText) {
 }
 
 async function initializeWhatsApp() {
+  muteService.loadMutes();
   if (!client) {
     createClient();
   }
@@ -545,7 +578,9 @@ async function sendMessage(to, text) {
     throw new Error('WhatsApp client is not ready yet.');
   }
   const chatId = to.includes('@c.us') || to.includes('@g.us') || to.includes('@newsletter') ? to : `${to}@c.us`;
-  const sentMsg = await client.sendMessage(chatId, text);
+  const isNewsletter = chatId.endsWith('@newsletter');
+  const options = isNewsletter ? { sendSeen: false } : {};
+  const sentMsg = await client.sendMessage(chatId, text, options);
   if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
     rememberBotMessageId(sentMsg.id._serialized);
   }
@@ -558,7 +593,8 @@ async function sendMediaMessage(to, filePath, caption = '') {
   }
   const chatId = to.includes('@c.us') || to.includes('@g.us') || to.includes('@newsletter') ? to : `${to}@c.us`;
   const media = MessageMedia.fromFilePath(filePath);
-  const options = caption ? { caption } : {};
+  const isNewsletter = chatId.endsWith('@newsletter');
+  const options = isNewsletter ? { caption, sendSeen: false } : (caption ? { caption } : {});
   const sentMsg = await client.sendMessage(chatId, media, options);
   if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
     rememberBotMessageId(sentMsg.id._serialized);

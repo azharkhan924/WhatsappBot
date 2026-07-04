@@ -10,5 +10,7 @@
   "schedulerTargetGroups": [],
   "schedulerTargetChannels": [],
   "schedulerAdImageDir": "",
-  "schedulerAdCaption": ""
+  "schedulerAdCaption": "",
+  "adminNotifyNumber": "",
+  "autoPauseDurationHours": 12
 }
