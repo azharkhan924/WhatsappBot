@@ -3,10 +3,12 @@ import { View, Text, Switch, TextInput, TouchableOpacity, StyleSheet, ScrollView
 import { colors } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { Zap, ShieldCheck, Plus, X, MessageSquare, Save } from 'lucide-react-native';
+import { CountryCodePicker } from '../components/CountryCodePicker';
 
 export const ControlsScreen: React.FC = () => {
   const { config, updateConfig } = useApp();
   const [newNumber, setNewNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('91');
   const [holdingReply, setHoldingReply] = useState(config?.holdingReply || '');
   const [savingHolding, setSavingHolding] = useState(false);
 
@@ -34,11 +36,12 @@ export const ControlsScreen: React.FC = () => {
   };
 
   const handleAddNumber = async () => {
-    const raw = newNumber.trim().replace(/[^0-9]/g, '');
-    if (!raw || raw.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid phone number with country code (e.g. 14155552671).');
+    const rawNum = newNumber.trim().replace(/[^0-9]/g, '');
+    if (!rawNum || rawNum.length < 10) {
+      Alert.alert('Invalid Number', 'Please enter a valid phone number (e.g. 9876543210).');
       return;
     }
+    const raw = countryCode + rawNum;
     const currentList = config?.whitelist || [];
     if (currentList.includes(raw)) {
       Alert.alert('Duplicate', 'This phone number is already on the whitelist.');
@@ -126,14 +129,17 @@ export const ControlsScreen: React.FC = () => {
         {config.whitelistEnabled ? (
           <View style={styles.whitelistSection}>
             <View style={styles.addNumberRow}>
-              <TextInput
-                style={styles.numberInput}
-                placeholder="Country code + number (e.g. 14155551234)"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-                value={newNumber}
-                onChangeText={setNewNumber}
-              />
+              <View style={styles.inputWrapper}>
+                <CountryCodePicker value={countryCode} onChange={setCountryCode} />
+                <TextInput
+                  style={styles.numberInputWithPicker}
+                  placeholder="e.g. 9876543210"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                  value={newNumber}
+                  onChangeText={setNewNumber}
+                />
+              </View>
               <TouchableOpacity style={styles.addBtn} onPress={handleAddNumber}>
                 <Plus size={20} color="#ffffff" />
               </TouchableOpacity>
@@ -259,20 +265,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 16,
   },
-  numberInput: {
+  inputWrapper: {
     flex: 1,
-    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
     borderRadius: 12,
+    height: 48,
+    overflow: 'hidden',
+  },
+  numberInputWithPicker: {
+    flex: 1,
+    height: '100%',
     paddingHorizontal: 14,
     color: colors.text,
-    fontSize: 14,
+    fontSize: 16,
   },
   addBtn: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     backgroundColor: colors.accent,
     borderRadius: 12,
     alignItems: 'center',

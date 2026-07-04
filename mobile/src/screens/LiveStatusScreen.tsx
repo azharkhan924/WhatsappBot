@@ -4,10 +4,12 @@ import { colors } from '../theme/colors';
 import { useApp } from '../context/AppContext';
 import { apiService } from '../services/api';
 import { Radio, RefreshCw, LogOut, CheckCircle2, AlertTriangle, QrCode, Phone } from 'lucide-react-native';
+import { CountryCodePicker } from '../components/CountryCodePicker';
 
 export const LiveStatusScreen: React.FC = () => {
   const { whatsappState, reconnectWhatsApp, disconnect, apiBaseUrl } = useApp();
   const [requesting, setRequesting] = useState(false);
+  const [countryCode, setCountryCode] = useState('91');
   const [pairingPhone, setPairingPhone] = useState('');
   const [pairingCode, setPairingCode] = useState('');
   const [pairingLoading, setPairingLoading] = useState(false);
@@ -15,14 +17,15 @@ export const LiveStatusScreen: React.FC = () => {
 
   const handleGetPairingCode = async () => {
     setPairingError('');
-    const cleanPhone = pairingPhone.trim();
-    if (!cleanPhone) {
-      setPairingError('Please enter your WhatsApp phone number.');
+    const rawNum = pairingPhone.trim().replace(/[^0-9]/g, '');
+    if (!rawNum || rawNum.length < 10) {
+      setPairingError('Please enter a valid phone number (e.g. 9876543210).');
       return;
     }
     setPairingLoading(true);
     try {
-      const res = await apiService.requestPairingCode(cleanPhone);
+      const fullPhone = countryCode + rawNum;
+      const res = await apiService.requestPairingCode(fullPhone);
       if (res && res.pairingCode) {
         setPairingCode(res.pairingCode);
       }
@@ -113,14 +116,17 @@ export const LiveStatusScreen: React.FC = () => {
               <View style={styles.pairingDivider}>
                 <Text style={styles.pairingDividerText}>📱 OR LINK WITH PHONE NUMBER</Text>
                 <View style={styles.pairingRow}>
-                  <TextInput
-                    style={styles.pairingInput}
-                    placeholder="e.g. +14155551234"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="phone-pad"
-                    value={pairingPhone}
-                    onChangeText={setPairingPhone}
-                  />
+                  <View style={styles.inputWrapper}>
+                    <CountryCodePicker value={countryCode} onChange={setCountryCode} />
+                    <TextInput
+                      style={styles.pairingInputWithPicker}
+                      placeholder="e.g. 9876543210"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="phone-pad"
+                      value={pairingPhone}
+                      onChangeText={setPairingPhone}
+                    />
+                  </View>
                   <TouchableOpacity
                     style={styles.pairingButton}
                     onPress={handleGetPairingCode}
@@ -369,14 +375,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  pairingInput: {
+  inputWrapper: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
     borderRadius: 10,
+    height: 48,
+    overflow: 'hidden',
+  },
+  pairingInputWithPicker: {
+    flex: 1,
+    height: '100%',
     paddingHorizontal: 12,
-    height: 44,
     color: colors.text,
   },
   pairingButton: {
@@ -385,6 +398,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    height: 48,
   },
   pairingButtonText: {
     color: '#fff',
