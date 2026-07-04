@@ -6,8 +6,9 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const config = require('../config');
 
-const QUOTES_FILE = path.join(__dirname, '..', 'data', 'quotes.txt');
+const QUOTES_FILE = path.join(config.dataDir, 'quotes.txt');
 const API_URL = 'https://zenquotes.io/api/today';
 const API_TIMEOUT_MS = 8000;
 

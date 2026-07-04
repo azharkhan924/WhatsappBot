@@ -3,8 +3,9 @@
 
 const fs = require('fs');
 const path = require('path');
+const config = require('../config');
 
-const STATE_FILE = path.join(__dirname, '..', 'data', 'schedulerState.json');
+const STATE_FILE = path.join(config.dataDir, 'schedulerState.json');
 
 function getState() {
   if (fs.existsSync(STATE_FILE)) {

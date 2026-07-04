@@ -3,6 +3,7 @@
 // Everything in the app should read config from here, never from process.env directly.
 
 require('dotenv').config();
+const path = require('path');
 
 function toInt(value, fallback) {
   const parsed = parseInt(value, 10);
@@ -22,6 +23,7 @@ function toBool(value, fallback) {
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: toInt(process.env.PORT, 3000),
+  dataDir: process.env.DATA_DIR || path.join(__dirname, '..', 'data'),
 
   ai: {
     provider: (process.env.AI_PROVIDER || 'gemini').toLowerCase(),

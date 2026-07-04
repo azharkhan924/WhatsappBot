@@ -5,9 +5,10 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const config = require('../config');
 
-const CONFIG_FILE = path.join(__dirname, '..', 'data', 'botConfig.json');
-const SYSTEM_PROMPT_FILE = path.join(__dirname, '..', 'data', 'systemPrompt.txt');
+const CONFIG_FILE = path.join(config.dataDir, 'botConfig.json');
+const SYSTEM_PROMPT_FILE = path.join(config.dataDir, 'systemPrompt.txt');
 
 const defaultConfig = {
   botEnabled: true,

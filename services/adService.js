@@ -14,7 +14,7 @@ const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif'])
  * Falls back to public/ads if not configured.
  */
 function getAdImageDir() {
-  return config.scheduler.adImageDir || path.join(__dirname, '..', 'data', 'ads');
+  return config.scheduler.adImageDir || path.join(config.dataDir, 'ads');
 }
 
 /**

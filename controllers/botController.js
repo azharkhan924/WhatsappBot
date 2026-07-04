@@ -12,9 +12,10 @@ const logger = require('../utils/logger');
 const fs = require('fs');
 const path = require('path');
 
+const config = require('../config');
 const VERSION = require('../package.json').version;
 const START_TIME = Date.now();
-const QUOTES_FILE = path.join(__dirname, '..', 'data', 'quotes.txt');
+const QUOTES_FILE = path.join(config.dataDir, 'quotes.txt');
 
 async function getRoot(req, res) {
   res.json({

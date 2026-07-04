@@ -48,7 +48,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Determine target directory, default to public/ads
     const config = require('../config');
-    const adDir = config.scheduler.adImageDir || path.join(__dirname, '..', 'data', 'ads');
+    const adDir = config.scheduler.adImageDir || path.join(config.dataDir, 'ads');
     // Ensure directory exists
     if (!fs.existsSync(adDir)) {
       fs.mkdirSync(adDir, { recursive: true });
@@ -68,8 +68,8 @@ router.post(['/api/scheduler/ads/upload', '/scheduler/ads/upload'], dashboardAut
 const uploadQuotes = multer({ storage: multer.memoryStorage() });
 router.post(['/api/scheduler/quotes/upload', '/scheduler/quotes/upload'], dashboardAuth, uploadQuotes.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
-  const content = req.file.buffer.toString('utf-8');
-  const QUOTES_FILE = path.join(__dirname, '..', 'data', 'quotes.txt');
+  const config = require('../config');
+  const QUOTES_FILE = path.join(config.dataDir, 'quotes.txt');
   fs.writeFileSync(QUOTES_FILE, content, 'utf-8');
   require('../services/quoteService').clearCache();
   res.json({ success: true, content });

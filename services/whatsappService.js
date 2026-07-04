@@ -15,7 +15,7 @@ const botConfigService = require('./botConfigService');
 const muteService = require('./muteService');
 const { handleCommand, isCommand } = require('./commandService');
 
-const SESSION_PATH = path.join(__dirname, '..', 'data', 'session');
+const SESSION_PATH = path.join(config.dataDir, 'session');
 
 // Dedupe set for incoming message IDs (guards against duplicate events from whatsapp-web.js).
 const processedMessageIds = new Set();

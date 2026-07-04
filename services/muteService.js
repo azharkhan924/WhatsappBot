@@ -5,8 +5,9 @@
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
+const config = require('../config');
 
-const MUTE_FILE = path.join(__dirname, '..', 'data', 'mutedUsers.json');
+const MUTE_FILE = path.join(config.dataDir, 'mutedUsers.json');
 let mutedUsers = {};
 
 function loadMutes() {
