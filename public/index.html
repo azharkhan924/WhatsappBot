@@ -515,7 +515,7 @@
       display: flex;
       gap: 8px;
       width: 100%;
-      align-items: center;
+      align-items: stretch;
     }
 
     .input-row input {
@@ -531,7 +531,8 @@
     input[type="time"],
     select {
       width: 100%;
-      padding: 14px 18px;
+      height: 48px;
+      padding: 0 18px;
       background: var(--bg-input);
       border: 1.5px solid var(--border-light);
       border-radius: 10px;
@@ -929,6 +930,7 @@
       background: var(--bg-input);
       transition: border-color var(--wa-transition), box-shadow var(--wa-transition);
       overflow: hidden;
+      height: 48px;
     }
     
     .phone-input-container:focus-within {
@@ -943,12 +945,19 @@
       background: var(--bg-input) !important;
       width: auto !important;
       min-width: 80px !important;
-      padding: 12px 8px 12px 14px !important;
+      padding: 0 26px 0 14px !important;
       margin: 0 !important;
       box-shadow: none !important;
       outline: none !important;
-      color: var(--text-primary);
+      color: var(--text-primary) !important;
       cursor: pointer;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238696A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 8px center !important;
+      background-size: 12px !important;
     }
     
     .phone-input-container input {
@@ -956,11 +965,13 @@
       border-radius: 0 !important;
       background: transparent !important;
       flex: 1 !important;
-      padding: 12px 14px !important;
+      padding: 0 14px !important;
       margin: 0 !important;
       box-shadow: none !important;
       outline: none !important;
-      color: var(--text-primary);
+      color: var(--text-primary) !important;
+      height: 100% !important;
+      font-size: 16px !important;
     }
   </style>
 </head>
