@@ -649,9 +649,23 @@ async function getChannelIdFromLink(inviteLink) {
     }
     if (!inviteCode) throw new Error('Invalid invite link format');
     
-    const channel = await client.getChannelByInviteCode(inviteCode);
-    if (!channel || !channel.id) throw new Error('Channel not found or bot does not have access.');
-    return channel.id._serialized;
+    let channelId = null;
+    if (typeof client.getChannelByInviteCode === 'function') {
+      const channel = await client.getChannelByInviteCode(inviteCode);
+      if (channel && channel.id) channelId = channel.id._serialized;
+    } else {
+      // Fallback for older whatsapp-web.js versions on Railway
+      channelId = await client.pupPage.evaluate(async (code) => {
+        if (window.WWebJS && typeof window.WWebJS.getChannelMetadata === 'function') {
+           const response = await window.WWebJS.getChannelMetadata(code);
+           return response ? response.idJid : null;
+        }
+        return null;
+      }, inviteCode);
+    }
+    
+    if (!channelId) throw new Error('Channel not found, bot does not have access, or whatsapp-web.js version is too old to support link extraction.');
+    return channelId;
   } catch (err) {
     logger.error(`Error getting channel from link: ${err.message}`);
     throw err;
