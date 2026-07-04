@@ -303,6 +303,15 @@ function renderStatus(state) {
   }
 }
 
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ===== Socket.IO live updates =====
 function connectSocket() {
   if (socket) socket.disconnect();
@@ -312,6 +321,25 @@ function connectSocket() {
   });
 
   socket.on('state', renderStatus);
+
+  socket.on('dashboard_log', (log) => {
+    const logsContainer = $('logs');
+    if (!logsContainer) return;
+    
+    const timeStr = new Date(log.timestamp).toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${log.type || 'info'}`;
+    entry.innerHTML = `
+      <span class="log-time">[${timeStr}]</span>
+      <span class="log-msg">${escapeHtml(log.message)}</span>
+    `;
+    logsContainer.appendChild(entry);
+    logsContainer.scrollTop = logsContainer.scrollHeight;
+    
+    while (logsContainer.children.length > 50) {
+      logsContainer.removeChild(logsContainer.firstChild);
+    }
+  });
 
   socket.on('connect_error', () => {
     // Socket layer failing isn't fatal — REST polling fallback below covers status.
@@ -497,19 +525,44 @@ async function saveWhitelist(list) {
 
 $('whitelist-add-btn')?.addEventListener('click', () => {
   const input = $('whitelist-input');
-  if (!input) return;
-  const raw = input.value.trim().replace(/[^0-9]/g, '');
-  if (!raw || raw.length < 10) {
-    toast('Enter a valid number with country code', 'error');
+  const countrySelect = $('whitelist-country-code');
+  if (!input || !countrySelect) return;
+
+  const hasPlus = input.value.trim().startsWith('+');
+  let raw = input.value.trim().replace(/[^0-9]/g, '');
+  if (!raw) {
+    toast('Enter a valid phone number', 'error');
     return;
   }
+
+  let fullNumber = raw;
+  const countryCode = countrySelect.value;
+
+  if (hasPlus) {
+    // User explicitly entered a full international number with +
+    fullNumber = raw;
+  } else {
+    // If they typed exactly 10 digits, prepend selected country code
+    if (raw.length === 10) {
+      fullNumber = countryCode + raw;
+    } else if (raw.length > 10 && raw.startsWith(countryCode)) {
+      fullNumber = raw;
+    } else if (raw.length > 10) {
+      // It's already a full number or has a different country code, keep it
+      fullNumber = raw;
+    } else {
+      toast('Enter a valid phone number (at least 10 digits)', 'error');
+      return;
+    }
+  }
+
   const list = new Set(currentConfig?.whitelist || []);
-  if (list.has(raw)) {
+  if (list.has(fullNumber)) {
     toast('Already on the whitelist');
     input.value = '';
     return;
   }
-  list.add(raw);
+  list.add(fullNumber);
   input.value = '';
   saveWhitelist([...list]);
 });

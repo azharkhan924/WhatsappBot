@@ -621,6 +621,7 @@
       border-radius: 20px;
       padding: 6px 8px 6px 12px;
       font-size: 13px;
+      color: var(--text-primary);
     }
 
     .chip button {
@@ -758,6 +759,19 @@
       padding: 12px;
       border: 1px solid var(--border);
     }
+
+    .log-entry {
+      margin-bottom: 6px;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .log-entry:last-child { margin-bottom: 0; }
+    .log-time { color: var(--text-muted); margin-right: 6px; font-family: monospace; }
+    .log-entry.info .log-msg { color: var(--text-primary); }
+    .log-entry.success .log-msg { color: var(--wa-green); }
+    .log-entry.warning .log-msg { color: var(--wa-warning); }
+    .log-entry.error .log-msg { color: var(--wa-danger); }
+    .log-entry.status .log-msg { color: var(--wa-teal); }
 
     /* ═══════════════════════════════════════════
        Bottom Tab Bar (Mobile)
@@ -1160,7 +1174,19 @@
           <div class="card">
             <div class="card-title">Whitelisted Numbers</div>
             <div class="input-row" style="margin-bottom:8px;">
-              <input type="text" id="whitelist-input" placeholder="919876543210 (with country code, no +)">
+              <select id="whitelist-country-code" style="width: auto; min-width: 100px; padding: 10px 8px; margin-right: 4px;">
+                <option value="91" selected>+91 (IN)</option>
+                <option value="1">+1 (US)</option>
+                <option value="44">+44 (UK)</option>
+                <option value="971">+971 (AE)</option>
+                <option value="62">+62 (ID)</option>
+                <option value="60">+60 (MY)</option>
+                <option value="65">+65 (SG)</option>
+                <option value="92">+92 (PK)</option>
+                <option value="880">+880 (BD)</option>
+                <option value="966">+966 (SA)</option>
+              </select>
+              <input type="text" id="whitelist-input" placeholder="9876543210 (without country code)" style="flex: 1;">
               <button class="btn btn-primary btn-sm" id="whitelist-add-btn">Add</button>
             </div>
             <div class="chip-list" id="whitelist-chips"></div>

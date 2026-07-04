@@ -60,6 +60,15 @@ function broadcastState() {
   ioInstance.emit('state', status);
 }
 
+function logToDashboard(message, type = 'info') {
+  if (!ioInstance) return;
+  ioInstance.emit('dashboard_log', {
+    timestamp: new Date().toISOString(),
+    message,
+    type
+  });
+}
+
 function getDashboardStatus() {
   if (isReady && client && client.info) {
     const rawNum = client.info.wid ? client.info.wid.user : null;
@@ -322,6 +331,7 @@ function registerEventHandlers() {
   client.on('qr', async (qr) => {
     lastQr = qr;
     logger.info('QR Generated. Scan it with WhatsApp (Linked Devices > Link a device).');
+    logToDashboard('New QR generated. Scan it with WhatsApp to connect.', 'status');
     qrcode.generate(qr, { small: true });
     try {
       lastQrDataUrl = await QR.toDataURL(qr);
@@ -333,6 +343,7 @@ function registerEventHandlers() {
 
   client.on('authenticated', () => {
     logger.info('Authenticated successfully.');
+    logToDashboard('Authenticated successfully.', 'success');
     broadcastState();
   });
 
@@ -341,12 +352,14 @@ function registerEventHandlers() {
     lastQr = null;
     lastQrDataUrl = null;
     logger.info('WhatsApp client is Ready.');
+    logToDashboard('WhatsApp client is ready and connected.', 'success');
     startHealthCheck();
     broadcastState();
   });
 
   client.on('disconnected', async (reason) => {
     logger.info(`Disconnected event: ${reason}`);
+    logToDashboard(`Disconnected: ${reason}`, 'error');
     isReady = false;
     lastQrDataUrl = null;
     broadcastState();
@@ -414,6 +427,7 @@ async function handleIncomingMessage(message) {
   const botCfg = botConfigService.getConfig();
   if (!botCfg.botEnabled) {
     logger.info(`Bot is disabled in control room. Skipping reply to ${userId}`);
+    logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: bot disabled)`, 'warning');
     return;
   }
 
@@ -421,6 +435,7 @@ async function handleIncomingMessage(message) {
     const whitelist = Array.isArray(botCfg.whitelist) ? botCfg.whitelist : [];
     if (whitelist.length === 0) {
       logger.info(`Whitelist mode active but whitelist is empty. Skipping bot reply to ${userId}`);
+      logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: whitelist is empty)`, 'warning');
       return;
     }
 
@@ -436,16 +451,21 @@ async function handleIncomingMessage(message) {
 
     if (!isWhitelisted) {
       logger.info(`Sender ${userId} (contact: ${contactDigits}) is not on the whitelist. Skipping bot reply.`);
+      logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: not whitelisted)`, 'warning');
       return;
     }
   }
 
   logger.info(`Incoming message from ${userId}: ${text}`);
+  logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 'info');
 
   // Slash commands bypass the AI pipeline entirely.
   if (isCommand(text)) {
     const reply = handleCommand(text, { userId, stats, isReady });
-    await sendHumanLikeReply(chat, message, reply);
+    const sent = await sendHumanLikeReply(chat, message, reply);
+    if (sent) {
+      logToDashboard(`Sent Command Reply to ${contactDigits || userId}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
+    }
     return;
   }
 
@@ -455,6 +475,7 @@ async function handleIncomingMessage(message) {
 
   if (await hasHumanReplied(chat, message)) {
     logger.info(`Human already replied to ${userId} before AI generation. Skipping bot reply.`);
+    logToDashboard(`Cancelled AI reply to ${contactDigits || userId} (human replied first)`, 'warning');
     return;
   }
 
@@ -465,6 +486,7 @@ async function handleIncomingMessage(message) {
   const sent = await sendHumanLikeReply(chat, message, reply);
   if (sent) {
     conversationMemory.addMessage(userId, 'assistant', reply);
+    logToDashboard(`Sent AI reply to ${contactDigits || userId}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
   }
 }
 
