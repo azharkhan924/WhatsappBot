@@ -867,10 +867,22 @@ async function loadAvailableChats(showToast = false) {
       const groupSelect = $('scheduler-group-input');
       const channelSelect = $('scheduler-channel-input');
       if (groupSelect && data.groups) {
-        groupSelect.innerHTML = '<option value="">-- Select a group --</option>' + data.groups.map(g => `<option value="${g.id}">${g.name || g.id}</option>`).join('');
+        groupSelect.innerHTML = '<option value="">-- Select a group --</option>';
+        data.groups.forEach(g => {
+          const opt = document.createElement('option');
+          opt.value = g.id;
+          opt.textContent = g.name || g.id;
+          groupSelect.appendChild(opt);
+        });
       }
       if (channelSelect && data.channels) {
-        channelSelect.innerHTML = '<option value="">-- Select a channel --</option>' + data.channels.map(c => `<option value="${c.id}">${c.name || c.id}</option>`).join('');
+        channelSelect.innerHTML = '<option value="">-- Select a channel --</option>';
+        data.channels.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name || c.id;
+          channelSelect.appendChild(opt);
+        });
       }
       
       if (showToast) {

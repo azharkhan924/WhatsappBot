@@ -627,7 +627,7 @@ async function getAvailableChats() {
     for (const chat of chats) {
       if (chat.isGroup || (chat.id && chat.id.server === 'g.us')) {
         groups.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Group' });
-      } else if (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter')) {
+      } else if (chat.isChannel || (chat.id && chat.id.server === 'newsletter') || (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter'))) {
         channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
       }
     }
