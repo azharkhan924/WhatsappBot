@@ -736,9 +736,32 @@ $('scheduler-ad-upload-input')?.addEventListener('change', async (e) => {
   }
 });
 
+// Load available chats from backend to populate datalists
+async function loadAvailableChats() {
+  try {
+    const res = await fetch(`${API_BASE}/api/scheduler/available-chats`, {
+      headers: { 'x-dashboard-key': DASHBOARD_KEY },
+    });
+    const data = await res.json();
+    if (data.success) {
+      const groupDatalist = $('available-groups');
+      const channelDatalist = $('available-channels');
+      if (groupDatalist && data.groups) {
+        groupDatalist.innerHTML = data.groups.map(g => `<option value="${g.name || g.id}">${g.id}</option>`).join('');
+      }
+      if (channelDatalist && data.channels) {
+        channelDatalist.innerHTML = data.channels.map(c => `<option value="${c.name || c.id}">${c.id}</option>`).join('');
+      }
+    }
+  } catch (err) {
+    // Silently fail if endpoint isn't available yet or network error
+  }
+}
+
 // Load scheduler status from backend
 async function loadSchedulerStatus() {
   try {
+    loadAvailableChats();
     const status = await api('/api/scheduler/status');
 
     // Toggle

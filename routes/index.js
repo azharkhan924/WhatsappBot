@@ -35,6 +35,7 @@ router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.po
 // Scheduler routes
 router.get(['/api/scheduler/status', '/scheduler/status'], dashboardAuth, controller.getSchedulerStatus);
 router.post(['/api/scheduler/trigger', '/scheduler/trigger'], dashboardAuth, controller.postTriggerScheduler);
+router.get(['/api/scheduler/available-chats', '/scheduler/available-chats'], dashboardAuth, controller.getAvailableChats);
 
 // Ad images upload route
 const multer = require('multer');

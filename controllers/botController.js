@@ -127,6 +127,15 @@ async function postTriggerScheduler(req, res, next) {
   }
 }
 
+async function getAvailableChats(req, res, next) {
+  try {
+    const chats = await whatsappService.getAvailableChats();
+    res.json({ success: true, ...chats });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function postRequestOtp(req, res, next) {
   try {
     const { phone } = req.body || {};
@@ -180,6 +189,7 @@ module.exports = {
   putConfig,
   getSchedulerStatus,
   postTriggerScheduler,
+  getAvailableChats,
   postRequestOtp,
   postVerifyOtp,
   postPairingCode,

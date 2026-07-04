@@ -560,6 +560,26 @@ async function findChatByName(name) {
   }
 }
 
+async function getAvailableChats() {
+  if (!client || !isReady) return { groups: [], channels: [] };
+  try {
+    const chats = await client.getChats();
+    const groups = [];
+    const channels = [];
+    for (const chat of chats) {
+      if (chat.isGroup) {
+        groups.push({ id: chat.id._serialized, name: chat.name });
+      } else if (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter')) {
+        channels.push({ id: chat.id._serialized, name: chat.name });
+      }
+    }
+    return { groups, channels };
+  } catch (err) {
+    logger.error(`Error getting available chats: ${err.message}`);
+    return { groups: [], channels: [] };
+  }
+}
+
 function getStatus() {
   return {
     ready: isReady,
@@ -600,6 +620,7 @@ module.exports = {
   sendMediaMessage,
   getClient,
   findChatByName,
+  getAvailableChats,
   getStatus,
   getStats,
   setSocketIO,

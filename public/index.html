@@ -791,7 +791,8 @@
               👥 Target Groups
             </div>
             <div class="whitelist-input-row">
-              <input type="text" id="scheduler-group-input" placeholder="Group ID or name (e.g. 120363XXXXX@g.us)">
+              <input type="text" id="scheduler-group-input" list="available-groups" placeholder="Select or type group name/ID (e.g. 120363XXXXX@g.us)">
+              <datalist id="available-groups"></datalist>
               <button class="primary" id="scheduler-group-add-btn">Add</button>
             </div>
             <div class="chip-list" id="scheduler-group-chips"></div>
@@ -804,7 +805,8 @@
               📢 Target Channels (Newsletters)
             </div>
             <div class="whitelist-input-row">
-              <input type="text" id="scheduler-channel-input" placeholder="Channel ID (e.g. 120363XXXXX@newsletter)">
+              <input type="text" id="scheduler-channel-input" list="available-channels" placeholder="Select or type channel name/ID">
+              <datalist id="available-channels"></datalist>
               <button class="primary" id="scheduler-channel-add-btn">Add</button>
             </div>
             <div class="chip-list" id="scheduler-channel-chips"></div>
