@@ -215,6 +215,12 @@ async function destroyAndRecreateClient(reason) {
   // ── 1. Try graceful destroy ──
   try {
     if (client) {
+      logger.info('Removing all listeners from existing client...');
+      try {
+        client.removeAllListeners();
+      } catch (err) {
+        logger.warn(`Could not remove listeners: ${err.message}`);
+      }
       logger.info('Destroying existing client...');
       // Try to kill the underlying Puppeteer browser directly first
       try {
@@ -285,8 +291,23 @@ async function destroyAndRecreateClient(reason) {
         reconnectAttempt = 0; // reset on success
         logger.info('Client successfully recreated.');
       })
-      .catch((err) => {
+      .catch(async (err) => {
         logger.error(`Recreation attempt #${reconnectAttempt} failed: ${err.message}`);
+        
+        // Clean up the failed client so it doesn't leak or fire events
+        if (client) {
+          try {
+            client.removeAllListeners();
+            await Promise.race([
+              client.destroy(),
+              sleep(5000),
+            ]);
+          } catch (destroyErr) {
+            logger.warn(`Could not destroy client after initialization failure: ${destroyErr.message}`);
+          }
+          client = null;
+        }
+
         isReconnecting = false;
         // Retry with backoff
         setTimeout(() => destroyAndRecreateClient('Retry recreation after failure'), 3000);
@@ -348,6 +369,27 @@ function registerEventHandlers() {
     broadcastState();
   });
 
+  client.on('auth_failure', async (msg) => {
+    logger.error(`Authentication failure: ${msg}`);
+    logToDashboard(`Authentication failed: ${msg}. Clearing session and restarting...`, 'error');
+    isReady = false;
+    lastQrDataUrl = null;
+    broadcastState();
+    
+    // Clear session so the user can scan QR again
+    try {
+      const fs = require('fs');
+      if (fs.existsSync(SESSION_PATH)) {
+        fs.rmSync(SESSION_PATH, { recursive: true, force: true });
+        logger.info('Cleared session directory after authentication failure.');
+      }
+    } catch (err) {
+      logger.error(`Failed to clear session directory: ${err.message}`);
+    }
+    
+    await destroyAndRecreateClient(`Auth failure: ${msg}`);
+  });
+
   client.on('ready', () => {
     isReady = true;
     lastQr = null;
@@ -401,8 +443,8 @@ async function handleIncomingMessage(message) {
   if (message.broadcast || message.from === 'status@broadcast' || message.from.includes('@newsletter')) return;
 
   // Optionally ignore group messages.
-  const chat = await message.getChat();
-  if (config.whatsapp.ignoreGroups && chat.isGroup) return;
+  const isGroup = message.from.endsWith('@g.us');
+  if (config.whatsapp.ignoreGroups && isGroup) return;
 
   // Ignore duplicate events (whatsapp-web.js can occasionally emit the same message twice).
   if (message.id && message.id._serialized) {
@@ -415,14 +457,9 @@ async function handleIncomingMessage(message) {
 
   if (!text) return; // ignore non-text (media-only) messages for now
 
-  // Fetch actual contact details for precise phone number matching
-  let contactDigits = userId.replace(/[^0-9]/g, '');
-  try {
-    const contact = await message.getContact();
-    if (contact && (contact.number || (contact.id && contact.id.user))) {
-      contactDigits = (contact.number || contact.id.user).replace(/[^0-9]/g, '');
-    }
-  } catch (_) {}
+  // Extract phone number digits synchronously from message sender without slow Puppeteer getContact() call
+  const senderId = message.author || message.from;
+  const contactDigits = senderId.replace(/[^0-9]/g, '');
 
   // Check dashboard bot config (botEnabled & whitelistEnabled)
   const botCfg = botConfigService.getConfig();
@@ -438,31 +475,7 @@ async function handleIncomingMessage(message) {
     return;
   }
 
-  // Handle #human command to request personal contact and pause AI
-  if (text.toLowerCase() === '#human') {
-    const pauseHours = botCfg.autoPauseDurationHours || 12;
-    muteService.muteUser(userId, pauseHours);
-
-    // Send confirmation to the user
-    const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
-    await sendHumanLikeReply(chat, message, userConfirm);
-
-    logToDashboard(`User +${contactDigits || userId} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
-
-    // Notify the admin if notification number is set
-    if (botCfg.adminNotifyNumber) {
-      const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
-      const adminAlert = `⚠️ *[Admin Alert]*\nUser *+${contactDigits}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
-      try {
-        await client.sendMessage(adminJid, adminAlert);
-        logger.info(`Notified admin at ${adminJid} about human request.`);
-      } catch (err) {
-        logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
-      }
-    }
-    return;
-  }
-
+  // Verify whitelist first if enabled
   if (botCfg.whitelistEnabled) {
     const whitelist = Array.isArray(botCfg.whitelist) ? botCfg.whitelist : [];
     if (whitelist.length === 0) {
@@ -490,6 +503,35 @@ async function handleIncomingMessage(message) {
 
   logger.info(`Incoming message from ${userId}: ${text}`);
   logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 'info');
+
+  // Handle #human command to request personal contact and pause AI
+  if (text.toLowerCase() === '#human') {
+    const pauseHours = botCfg.autoPauseDurationHours || 12;
+    muteService.muteUser(userId, pauseHours);
+
+    // Send confirmation to the user (fetch chat lazily here)
+    const chat = await message.getChat();
+    const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
+    await sendHumanLikeReply(chat, message, userConfirm);
+
+    logToDashboard(`User +${contactDigits || userId} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
+
+    // Notify the admin if notification number is set
+    if (botCfg.adminNotifyNumber) {
+      const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
+      const adminAlert = `⚠️ *[Admin Alert]*\nUser *+${contactDigits}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
+      try {
+        await client.sendMessage(adminJid, adminAlert);
+        logger.info(`Notified admin at ${adminJid} about human request.`);
+      } catch (err) {
+        logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
+      }
+    }
+    return;
+  }
+
+  // Fetch the chat object lazily for commands/replies
+  const chat = await message.getChat();
 
   // Slash commands bypass the AI pipeline entirely.
   if (isCommand(text)) {
@@ -715,6 +757,53 @@ async function requestPairingCode(rawPhone) {
   return code;
 }
 
+async function hardReset() {
+  logger.warn('Hard reset requested. Cleaning up and deleting session...');
+  stopHealthCheck();
+  isReady = false;
+  
+  if (client) {
+    try {
+      logger.info('Removing all listeners from client...');
+      client.removeAllListeners();
+      
+      const browser = client.pupBrowser;
+      if (browser && browser.process()) {
+        logger.info('Force-killing Puppeteer browser process...');
+        browser.process().kill('SIGKILL');
+      }
+      
+      await Promise.race([
+        client.destroy(),
+        sleep(5000), // Don't let destroy() hang forever
+      ]);
+    } catch (err) {
+      logger.warn(`Could not destroy client cleanly during hard reset: ${err.message}`);
+    }
+  }
+  
+  client = null;
+
+  // Kill any leftover chrome/chromium referencing session path
+  try {
+    const { execSync } = require('child_process');
+    execSync(`pkill -f "${SESSION_PATH}" 2>/dev/null || true`, { timeout: 5000 });
+    logger.info('Killed any leftover browser processes referencing session path.');
+  } catch (_) {}
+
+  // Delete session files
+  const fs = require('fs');
+  if (fs.existsSync(SESSION_PATH)) {
+    try {
+      fs.rmSync(SESSION_PATH, { recursive: true, force: true });
+      logger.info('Successfully deleted session directory.');
+    } catch (err) {
+      logger.error(`Failed to delete session directory during hard reset: ${err.message}`);
+      throw err;
+    }
+  }
+}
+
 module.exports = {
   initializeWhatsApp,
   sendMessage,
@@ -729,4 +818,5 @@ module.exports = {
   getDashboardStatus,
   reconnect,
   requestPairingCode,
+  hardReset,
 };

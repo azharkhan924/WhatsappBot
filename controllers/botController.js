@@ -218,24 +218,16 @@ async function postPairingCode(req, res, next) {
 
 async function postHardReset(req, res, next) {
   try {
-    const fs = require('fs');
-    const path = require('path');
-    const config = require('../config');
-    const sessionDir = path.join(config.dataDir, 'session');
-    
-    // Attempt to delete session dir
-    if (fs.existsSync(sessionDir)) {
-      fs.rmSync(sessionDir, { recursive: true, force: true });
-    }
+    // Call the safe hard reset helper from whatsappService
+    await whatsappService.hardReset();
     
     res.json({ success: true, message: 'Hard reset triggered. The server is restarting...' });
     
-    // Crash the process intentionally so Railway restarts it
+    // Crash the process intentionally so Railway/Docker restarts it
     setTimeout(() => {
       process.exit(0);
     }, 1000);
   } catch (err) {
-    const logger = require('../utils/logger');
     logger.error(`postHardReset failed: ${err.message}`);
     next(err);
   }

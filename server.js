@@ -62,7 +62,10 @@ async function start() {
     })
     .catch((err) => {
       logger.error(`Failed to initialize WhatsApp client: ${err.message}`);
-      logger.info('HTTP server will keep running; WhatsApp will retry via reconnect logic.');
+      logger.info('Initiating reconnection loop...');
+      whatsappService.reconnect().catch((recErr) => {
+        logger.error(`Failed to initiate reconnection loop: ${recErr.message}`);
+      });
     });
 }
 

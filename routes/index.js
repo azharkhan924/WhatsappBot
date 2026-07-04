@@ -72,6 +72,7 @@ router.post(['/api/scheduler/quotes/upload', '/scheduler/quotes/upload'], dashbo
   if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
   const config = require('../config');
   const QUOTES_FILE = path.join(config.dataDir, 'quotes.txt');
+  const content = req.file.buffer.toString('utf-8');
   fs.writeFileSync(QUOTES_FILE, content, 'utf-8');
   require('../services/quoteService').clearCache();
   res.json({ success: true, content });
