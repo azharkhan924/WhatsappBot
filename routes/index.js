@@ -48,7 +48,7 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Determine target directory, default to public/ads
     const config = require('../config');
-    const adDir = config.scheduler.adImageDir || path.join(__dirname, '..', 'public', 'ads');
+    const adDir = config.scheduler.adImageDir || path.join(__dirname, '..', 'data', 'ads');
     // Ensure directory exists
     if (!fs.existsSync(adDir)) {
       fs.mkdirSync(adDir, { recursive: true });
