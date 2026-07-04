@@ -747,7 +747,7 @@ async function loadAvailableChats() {
       const groupDatalist = $('available-groups');
       const channelDatalist = $('available-channels');
       if (groupDatalist && data.groups) {
-        groupDatalist.innerHTML = data.groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+        groupDatalist.innerHTML = data.groups.map(g => `<option value="${g.name || g.id}">${g.id}</option>`).join('');
       }
       if (channelDatalist && data.channels) {
         channelDatalist.innerHTML = data.channels.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
