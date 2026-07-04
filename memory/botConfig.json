@@ -2,5 +2,11 @@
   "botEnabled": true,
   "whitelistEnabled": false,
   "holdingReply": "Yeh wala main personally dekh ke reply karunga, thoda wait karo",
-  "whitelist": []
+  "whitelist": [],
+  "schedulerCron": "",
+  "schedulerTimezone": "",
+  "schedulerTargetGroups": [],
+  "schedulerTargetChannels": [],
+  "schedulerAdImageDir": "",
+  "schedulerAdCaption": ""
 }

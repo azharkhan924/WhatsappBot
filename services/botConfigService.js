@@ -14,6 +14,14 @@ const defaultConfig = {
   whitelistEnabled: true,
   holdingReply: 'Yeh wala main personally dekh ke reply karunga, thoda wait karo',
   whitelist: [],
+  // Scheduler settings (dashboard overrides for .env defaults)
+  schedulerEnabled: undefined,
+  schedulerCron: '',
+  schedulerTimezone: '',
+  schedulerTargetGroups: [],
+  schedulerTargetChannels: [],
+  schedulerAdImageDir: '',
+  schedulerAdCaption: '',
 };
 
 let currentConfig = { ...defaultConfig };
@@ -94,6 +102,29 @@ function updateConfig(updates) {
   }
   if (typeof updates.systemPrompt === 'string') {
     updateSystemPrompt(updates.systemPrompt);
+  }
+
+  // Scheduler settings
+  if (typeof updates.schedulerEnabled === 'boolean') {
+    currentConfig.schedulerEnabled = updates.schedulerEnabled;
+  }
+  if (typeof updates.schedulerCron === 'string') {
+    currentConfig.schedulerCron = updates.schedulerCron;
+  }
+  if (typeof updates.schedulerTimezone === 'string') {
+    currentConfig.schedulerTimezone = updates.schedulerTimezone;
+  }
+  if (Array.isArray(updates.schedulerTargetGroups)) {
+    currentConfig.schedulerTargetGroups = updates.schedulerTargetGroups.map((s) => String(s).trim()).filter(Boolean);
+  }
+  if (Array.isArray(updates.schedulerTargetChannels)) {
+    currentConfig.schedulerTargetChannels = updates.schedulerTargetChannels.map((s) => String(s).trim()).filter(Boolean);
+  }
+  if (typeof updates.schedulerAdImageDir === 'string') {
+    currentConfig.schedulerAdImageDir = updates.schedulerAdImageDir;
+  }
+  if (typeof updates.schedulerAdCaption === 'string') {
+    currentConfig.schedulerAdCaption = updates.schedulerAdCaption;
   }
 
   saveConfigFile();

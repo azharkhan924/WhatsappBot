@@ -8,6 +8,7 @@ const app = require('./app');
 const config = require('./config');
 const logger = require('./utils/logger');
 const whatsappService = require('./services/whatsappService');
+const schedulerService = require('./services/schedulerService');
 
 let httpServer;
 
@@ -54,14 +55,20 @@ async function start() {
   }
 
   // Initialize WhatsApp in background so HTTP/WebSocket endpoints respond instantly
-  whatsappService.initializeWhatsApp().catch((err) => {
-    logger.error(`Failed to initialize WhatsApp client: ${err.message}`);
-    logger.info('HTTP server will keep running; WhatsApp will retry via reconnect logic.');
-  });
+  whatsappService.initializeWhatsApp()
+    .then(() => {
+      // Start the scheduler once WhatsApp is connected
+      schedulerService.startScheduler(whatsappService);
+    })
+    .catch((err) => {
+      logger.error(`Failed to initialize WhatsApp client: ${err.message}`);
+      logger.info('HTTP server will keep running; WhatsApp will retry via reconnect logic.');
+    });
 }
 
 function shutdown(signal) {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
+  schedulerService.stopScheduler();
   if (httpServer) {
     httpServer.close(() => {
       logger.info('HTTP server closed.');

@@ -2,7 +2,7 @@
 // Manages the whatsapp-web.js client: login, persistent session, reconnect logic,
 // and the full incoming-message pipeline (validation -> memory -> AI -> human-like reply).
 
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const QR = require('qrcode');
 const path = require('path');
@@ -522,12 +522,42 @@ async function sendMessage(to, text) {
   if (!client || !isReady) {
     throw new Error('WhatsApp client is not ready yet.');
   }
-  const chatId = to.includes('@c.us') || to.includes('@g.us') ? to : `${to}@c.us`;
+  const chatId = to.includes('@c.us') || to.includes('@g.us') || to.includes('@newsletter') ? to : `${to}@c.us`;
   const sentMsg = await client.sendMessage(chatId, text);
   if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
     rememberBotMessageId(sentMsg.id._serialized);
   }
   return sentMsg;
+}
+
+async function sendMediaMessage(to, filePath, caption = '') {
+  if (!client || !isReady) {
+    throw new Error('WhatsApp client is not ready yet.');
+  }
+  const chatId = to.includes('@c.us') || to.includes('@g.us') || to.includes('@newsletter') ? to : `${to}@c.us`;
+  const media = MessageMedia.fromFilePath(filePath);
+  const options = caption ? { caption } : {};
+  const sentMsg = await client.sendMessage(chatId, media, options);
+  if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
+    rememberBotMessageId(sentMsg.id._serialized);
+  }
+  return sentMsg;
+}
+
+function getClient() {
+  return client;
+}
+
+async function findChatByName(name) {
+  if (!client || !isReady) return null;
+  try {
+    const chats = await client.getChats();
+    const lowerName = name.toLowerCase();
+    return chats.find((c) => c.name && c.name.toLowerCase() === lowerName) || null;
+  } catch (err) {
+    logger.warn(`findChatByName error: ${err.message}`);
+    return null;
+  }
 }
 
 function getStatus() {
@@ -567,6 +597,9 @@ async function requestPairingCode(rawPhone) {
 module.exports = {
   initializeWhatsApp,
   sendMessage,
+  sendMediaMessage,
+  getClient,
+  findChatByName,
   getStatus,
   getStats,
   setSocketIO,

@@ -21,6 +21,7 @@
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "node-cache": "^5.1.2",
+    "node-cron": "^4.5.0",
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "socket.io": "^4.8.3",

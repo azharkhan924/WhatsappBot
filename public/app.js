@@ -578,12 +578,238 @@ $('pairing-btn')?.addEventListener('click', async () => {
   }
 });
 
+// ===== Scheduler =====
+let schedulerGroups = [];
+let schedulerChannels = [];
+
+// Render chip list for scheduler groups or channels
+function renderSchedulerChips(list, containerId, emptyId, removeCallback) {
+  const wrap = $(containerId);
+  const empty = $(emptyId);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!list || list.length === 0) {
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.forEach((item) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${item}</span>`;
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('aria-label', `Remove ${item}`);
+    removeBtn.addEventListener('click', () => removeCallback(item));
+    chip.appendChild(removeBtn);
+    wrap.appendChild(chip);
+  });
+}
+
+function renderSchedulerGroups() {
+  renderSchedulerChips(schedulerGroups, 'scheduler-group-chips', 'scheduler-group-empty', (item) => {
+    schedulerGroups = schedulerGroups.filter((g) => g !== item);
+    renderSchedulerGroups();
+  });
+}
+
+function renderSchedulerChannels() {
+  renderSchedulerChips(schedulerChannels, 'scheduler-channel-chips', 'scheduler-channel-empty', (item) => {
+    schedulerChannels = schedulerChannels.filter((c) => c !== item);
+    renderSchedulerChannels();
+  });
+}
+
+// Add group
+$('scheduler-group-add-btn')?.addEventListener('click', () => {
+  const input = $('scheduler-group-input');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) {
+    toast('Enter a group ID or name', 'error');
+    return;
+  }
+  if (schedulerGroups.includes(val)) {
+    toast('Already added');
+    input.value = '';
+    return;
+  }
+  schedulerGroups.push(val);
+  input.value = '';
+  renderSchedulerGroups();
+});
+
+$('scheduler-group-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('scheduler-group-add-btn')?.click();
+});
+
+// Add channel
+$('scheduler-channel-add-btn')?.addEventListener('click', () => {
+  const input = $('scheduler-channel-input');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) {
+    toast('Enter a channel ID', 'error');
+    return;
+  }
+  if (schedulerChannels.includes(val)) {
+    toast('Already added');
+    input.value = '';
+    return;
+  }
+  schedulerChannels.push(val);
+  input.value = '';
+  renderSchedulerChannels();
+});
+
+$('scheduler-channel-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('scheduler-channel-add-btn')?.click();
+});
+
+// Cron presets dropdown
+$('scheduler-cron-presets')?.addEventListener('change', (e) => {
+  const val = e.target.value;
+  if (val && $('scheduler-cron')) {
+    $('scheduler-cron').value = val;
+  }
+  e.target.value = ''; // reset dropdown
+});
+
+// Load scheduler status from backend
+async function loadSchedulerStatus() {
+  try {
+    const status = await api('/api/scheduler/status');
+
+    // Toggle
+    if ($('toggle-scheduler')) $('toggle-scheduler').checked = !!status.enabled;
+
+    // Cron
+    if ($('scheduler-cron')) $('scheduler-cron').value = status.cron || '0 9 * * *';
+
+    // Timezone
+    if ($('scheduler-timezone-label')) {
+      $('scheduler-timezone-label').textContent = status.timezone || 'Asia/Kolkata';
+    }
+
+    // Targets
+    schedulerGroups = status.targetGroups || [];
+    schedulerChannels = status.targetChannels || [];
+    renderSchedulerGroups();
+    renderSchedulerChannels();
+
+    // Ad dir
+    if ($('scheduler-ad-dir')) $('scheduler-ad-dir').value = status.adImageDir || '';
+
+    // Ad caption
+    if ($('scheduler-ad-caption')) $('scheduler-ad-caption').value = status.adCaption || '';
+
+    // Ad count
+    if ($('scheduler-ad-count')) {
+      $('scheduler-ad-count').textContent = status.availableAdImages !== undefined ? status.availableAdImages : '—';
+    }
+
+    // Last run info
+    if (status.lastRunAt) {
+      const lastRunDiv = $('scheduler-last-run');
+      const infoDiv = $('scheduler-last-run-info');
+      if (lastRunDiv && infoDiv) {
+        lastRunDiv.style.display = 'block';
+        const time = new Date(status.lastRunAt).toLocaleString();
+        const statusColor = status.lastRunStatus === 'success' ? '#25D366' :
+          status.lastRunStatus === 'no_targets' ? '#E3B341' : '#F85149';
+        let detailsHtml = `<span style="color:${statusColor}; font-weight:600;">${status.lastRunStatus}</span> at ${time}`;
+        if (status.lastRunDetails && status.lastRunDetails.length > 0) {
+          detailsHtml += '<br>';
+          status.lastRunDetails.forEach((d) => {
+            const icon = d.status === 'sent' ? '✅' : d.status === 'skipped' ? '⏭️' : '❌';
+            detailsHtml += `${icon} ${d.target} — quote: ${d.quoteSent ? '✓' : '✗'}, ad: ${d.adSent ? '✓' : '✗'}<br>`;
+          });
+        }
+        infoDiv.innerHTML = detailsHtml;
+      }
+    }
+  } catch (err) {
+    // Scheduler status endpoint may not exist on older backends — silently ignore
+  }
+}
+
+// Scheduler toggle
+$('toggle-scheduler')?.addEventListener('change', async (e) => {
+  const schedulerEnabled = e.target.checked;
+  try {
+    await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify({ schedulerEnabled }),
+    });
+    toast(schedulerEnabled ? 'Scheduler enabled' : 'Scheduler disabled', schedulerEnabled ? 'success' : '');
+  } catch (err) {
+    e.target.checked = !schedulerEnabled;
+    toast('Could not update — check backend', 'error');
+  }
+});
+
+// Save all scheduler settings
+$('scheduler-save-btn')?.addEventListener('click', async () => {
+  const btn = $('scheduler-save-btn');
+  if (btn) btn.disabled = true;
+
+  const updates = {
+    schedulerEnabled: $('toggle-scheduler')?.checked || false,
+    schedulerCron: $('scheduler-cron')?.value.trim() || '0 9 * * *',
+    schedulerTargetGroups: schedulerGroups,
+    schedulerTargetChannels: schedulerChannels,
+    schedulerAdImageDir: $('scheduler-ad-dir')?.value.trim() || '',
+    schedulerAdCaption: $('scheduler-ad-caption')?.value.trim() || '',
+  };
+
+  try {
+    await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+    toast('Scheduler settings saved!', 'success');
+    // Refresh status to get updated ad count etc.
+    loadSchedulerStatus();
+  } catch (err) {
+    toast('Failed to save scheduler settings', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+// Send Now button
+$('scheduler-send-now-btn')?.addEventListener('click', async () => {
+  const btn = $('scheduler-send-now-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Sending…';
+  }
+  try {
+    const result = await api('/api/scheduler/trigger', { method: 'POST' });
+    if (result.status === 'no_targets') {
+      toast('No targets configured — add groups or channels first', 'error');
+    } else {
+      toast('Quote & ad sent successfully!', 'success');
+    }
+    // Refresh to show last run status
+    loadSchedulerStatus();
+  } catch (err) {
+    toast('Failed to send — check backend connection', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🚀 Send Now';
+    }
+  }
+});
+
 // ===== Init =====
 function init() {
   showDashboard();
   connectSocket();
   startPollFallback();
   loadConfig();
+  loadSchedulerStatus();
 }
 
 // Auto-fill gate URL with current origin if empty
@@ -600,3 +826,4 @@ if (API_BASE && DASHBOARD_KEY) {
 } else {
   showGate();
 }
+

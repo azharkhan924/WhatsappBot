@@ -100,6 +100,21 @@ const config = {
     clientId: process.env.WA_CLIENT_ID || 'whatsapp-bot-session',
     ignoreGroups: toBool(process.env.IGNORE_GROUPS, false),
   },
+
+  scheduler: {
+    enabled: toBool(process.env.SCHEDULER_ENABLED, false),
+    cron: process.env.SCHEDULER_CRON || '0 9 * * *',
+    timezone: process.env.SCHEDULER_TIMEZONE || 'Asia/Kolkata',
+    targetGroups: (process.env.SCHEDULER_TARGET_GROUPS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    targetChannels: (process.env.SCHEDULER_TARGET_CHANNELS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
+    adImageDir: process.env.SCHEDULER_AD_IMAGE_DIR || '',
+  },
 };
 
 module.exports = config;

@@ -32,4 +32,8 @@ router.post(['/api/auth/admin-login', '/auth/admin-login'], controller.postAdmin
 // WhatsApp Pairing Code route
 router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.postPairingCode);
 
+// Scheduler routes
+router.get(['/api/scheduler/status', '/scheduler/status'], dashboardAuth, controller.getSchedulerStatus);
+router.post(['/api/scheduler/trigger', '/scheduler/trigger'], dashboardAuth, controller.postTriggerScheduler);
+
 module.exports = router;

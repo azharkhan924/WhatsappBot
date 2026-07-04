@@ -4,6 +4,7 @@
 const whatsappService = require('../services/whatsappService');
 const aiService = require('../services/aiService');
 const botConfigService = require('../services/botConfigService');
+const schedulerService = require('../services/schedulerService');
 const authService = require('../services/authService');
 const conversationMemory = require('../memory/conversationMemory');
 const provider = require('../providers');
@@ -90,8 +91,40 @@ async function getConfig(req, res) {
 }
 
 async function putConfig(req, res) {
-  const updated = botConfigService.updateConfig(req.body || {});
+  const updates = req.body || {};
+  const updated = botConfigService.updateConfig(updates);
+
+  // Restart scheduler if any scheduler-related settings changed
+  const schedulerKeys = [
+    'schedulerEnabled', 'schedulerCron', 'schedulerTimezone',
+    'schedulerTargetGroups', 'schedulerTargetChannels',
+    'schedulerAdImageDir', 'schedulerAdCaption',
+  ];
+  const hasSchedulerChange = schedulerKeys.some((k) => updates[k] !== undefined);
+  if (hasSchedulerChange) {
+    try {
+      schedulerService.restartScheduler();
+    } catch (err) {
+      logger.warn(`Failed to restart scheduler after config update: ${err.message}`);
+    }
+  }
+
   res.json(updated);
+}
+
+async function getSchedulerStatus(req, res) {
+  const status = schedulerService.getStatus();
+  res.json({ success: true, ...status });
+}
+
+async function postTriggerScheduler(req, res, next) {
+  try {
+    const result = await schedulerService.sendNow();
+    res.json({ success: true, ...result });
+  } catch (err) {
+    logger.error(`postTriggerScheduler failed: ${err.message}`);
+    next(Object.assign(err, { statusCode: 500, publicMessage: 'Failed to trigger scheduler' }));
+  }
 }
 
 async function postRequestOtp(req, res, next) {
@@ -145,6 +178,8 @@ module.exports = {
   postReconnect,
   getConfig,
   putConfig,
+  getSchedulerStatus,
+  postTriggerScheduler,
   postRequestOtp,
   postVerifyOtp,
   postPairingCode,
