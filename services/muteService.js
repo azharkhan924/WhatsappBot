@@ -19,7 +19,8 @@ function loadMutes() {
       // Clean up any expired mutes on startup
       const now = Date.now();
       let updated = false;
-      for (const [userId, expiresAt] of Object.entries(mutedUsers)) {
+      for (const [userId, entry] of Object.entries(mutedUsers)) {
+        const expiresAt = typeof entry === 'object' && entry !== null ? entry.expiresAt : entry;
         if (now > expiresAt) {
           delete mutedUsers[userId];
           updated = true;
@@ -44,11 +45,11 @@ function saveMutes() {
   }
 }
 
-function muteUser(userId, hours) {
+function muteUser(userId, hours, type = 'silent') {
   const expiresAt = Date.now() + hours * 60 * 60 * 1000;
-  mutedUsers[userId] = expiresAt;
+  mutedUsers[userId] = { expiresAt, type };
   saveMutes();
-  logger.info(`AI muted for user ${userId} for ${hours} hours (expires at ${new Date(expiresAt).toISOString()})`);
+  logger.info(`AI muted for user ${userId} for ${hours} hours (type: ${type}, expires at ${new Date(expiresAt).toISOString()})`);
 }
 
 function unmuteUser(userId) {
@@ -60,8 +61,10 @@ function unmuteUser(userId) {
 }
 
 function isUserMuted(userId) {
-  const expiresAt = mutedUsers[userId];
-  if (!expiresAt) return false;
+  const entry = mutedUsers[userId];
+  if (!entry) return false;
+  
+  const expiresAt = typeof entry === 'object' && entry !== null ? entry.expiresAt : entry;
   if (Date.now() > expiresAt) {
     delete mutedUsers[userId];
     saveMutes();
@@ -70,10 +73,20 @@ function isUserMuted(userId) {
   return true;
 }
 
+function getMuteType(userId) {
+  const entry = mutedUsers[userId];
+  if (!entry) return null;
+  if (typeof entry === 'object' && entry !== null) {
+    return entry.type || 'silent';
+  }
+  return 'silent';
+}
+
 function getMutedUsers() {
   const now = Date.now();
   const list = [];
-  for (const [userId, expiresAt] of Object.entries(mutedUsers)) {
+  for (const [userId, entry] of Object.entries(mutedUsers)) {
+    const expiresAt = typeof entry === 'object' && entry !== null ? entry.expiresAt : entry;
     if (now <= expiresAt) {
       list.push({ userId, expiresAt });
     }
@@ -86,5 +99,6 @@ module.exports = {
   muteUser,
   unmuteUser,
   isUserMuted,
+  getMuteType,
   getMutedUsers,
 };

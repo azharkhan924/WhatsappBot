@@ -430,6 +430,18 @@ function registerEventHandlers() {
   });
 }
 
+function getStringSimilarity(s1, s2) {
+  const clean = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean);
+  const w1 = clean(s1);
+  const w2 = clean(s2);
+  if (w1.length === 0 && w2.length === 0) return 1;
+  const set1 = new Set(w1);
+  const set2 = new Set(w2);
+  const intersection = [...set1].filter(x => set2.has(x)).length;
+  const union = new Set([...set1, ...set2]).size;
+  return intersection / union;
+}
+
 async function handleIncomingMessage(message) {
   stats.messagesReceived += 1;
 
@@ -471,7 +483,14 @@ async function handleIncomingMessage(message) {
 
   // Check if contact AI replies are muted
   if (muteService.isUserMuted(userId)) {
-    logger.info(`AI replies muted for ${userId}. Skipping reply.`);
+    const muteType = muteService.getMuteType(userId);
+    if (muteType === 'admin_handover') {
+      logger.info(`User ${userId} is in admin_handover mute. Sending automated holding reply.`);
+      const chat = await message.getChat();
+      await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.");
+    } else {
+      logger.info(`AI replies muted for ${userId}. Skipping reply.`);
+    }
     return;
   }
 
@@ -545,6 +564,46 @@ async function handleIncomingMessage(message) {
 
   // Conversation memory: fetch history, then append the user's message.
   const history = conversationMemory.getHistory(userId);
+
+  // Check if user is repeatedly asking the same question (potential frustration / failure of AI)
+  const userMessages = history.filter(h => h.role === 'user');
+  if (userMessages.length >= 2) {
+    const lastContent = userMessages[userMessages.length - 1].content || '';
+    const secondLastContent = userMessages[userMessages.length - 2].content || '';
+    
+    if (
+      text.length >= 5 &&
+      lastContent.length >= 5 &&
+      secondLastContent.length >= 5
+    ) {
+      const sim1 = getStringSimilarity(text, lastContent);
+      const sim2 = getStringSimilarity(lastContent, secondLastContent);
+      
+      if (sim1 >= 0.75 && sim2 >= 0.75) {
+        logger.warn(`User ${userId} has sent 3 consecutive highly similar messages. Triggering admin handover.`);
+        
+        // Mute AI automated replies for 10 minutes (10 / 60 hours) with type 'admin_handover'
+        muteService.muteUser(userId, 10 / 60, 'admin_handover');
+        
+        // Send admin notification
+        if (botCfg.adminNotifyNumber) {
+          const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
+          const adminAlert = `⚠️ *[System Alert]*\nUser *+${contactDigits}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
+          try {
+            await client.sendMessage(adminJid, adminAlert);
+            logger.info(`Notified admin at ${adminJid} about repeated questions.`);
+          } catch (err) {
+            logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
+          }
+        }
+        
+        // Send immediate holding reply
+        await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.");
+        return;
+      }
+    }
+  }
+
   conversationMemory.addMessage(userId, 'user', text);
 
   if (await hasHumanReplied(chat, message)) {
