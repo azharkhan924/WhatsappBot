@@ -1,14 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Room — Azhar's WhatsApp Bot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>WhatsApp Bot Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
-    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="/socket.io/socket.io.js"></script>
   <script>
     if (typeof io === 'undefined') {
@@ -16,331 +14,555 @@
     }
   </script>
   <style>
+    /* ═══════════════════════════════════════════
+       WhatsApp Theme — Dark & Light Mode
+       ═══════════════════════════════════════════ */
+
     :root {
-      --bg: #0D1117;
-      --surface: #161B22;
-      --surface-raised: #1C2230;
-      --border: #2A3140;
-      --text: #E6EDF3;
-      --text-muted: #8B949E;
-      --whatsapp-green: #25D366;
-      --accent: #7C5CFF;
-      --accent-dim: #5A42C7;
-      --warning: #E3B341;
-      --danger: #F85149;
-      --mono: 'JetBrains Mono', monospace;
-      --sans: 'Inter', sans-serif;
+      --wa-green: #00A884;
+      --wa-green-hover: #008f72;
+      --wa-green-light: #25D366;
+      --wa-teal: #00A884;
+      --wa-danger: #EA4335;
+      --wa-warning: #F4B400;
+      --wa-radius: 10px;
+      --wa-radius-lg: 14px;
+      --wa-transition: 0.2s ease;
+      --wa-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
+    /* ── Dark Theme (WhatsApp Dark) ── */
+    [data-theme="dark"] {
+      --bg-app: #111B21;
+      --bg-panel: #1F2C34;
+      --bg-card: #202C33;
+      --bg-input: #2A3942;
+      --bg-hover: #2A3942;
+      --border: #2A3942;
+      --border-light: #344049;
+      --text-primary: #E9EDEF;
+      --text-secondary: #8696A0;
+      --text-muted: #667781;
+      --bg-sidebar: #111B21;
+      --bg-sidebar-active: #2A3942;
+      --bg-login: #111B21;
+      --bg-login-card: #1F2C34;
+      --qr-bg: #FFFFFF;
+      --chip-bg: #2A3942;
+      --toast-bg: #1F2C34;
+      --shadow: rgba(0,0,0,0.3);
+      --scrollbar-thumb: #374045;
     }
+
+    /* ── Light Theme (WhatsApp Light) ── */
+    [data-theme="light"] {
+      --bg-app: #EFEAE2;
+      --bg-panel: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-input: #F0F2F5;
+      --bg-hover: #F0F2F5;
+      --border: #E9EDEF;
+      --border-light: #D1D7DB;
+      --text-primary: #111B21;
+      --text-secondary: #54656F;
+      --text-muted: #8696A0;
+      --bg-sidebar: #FFFFFF;
+      --bg-sidebar-active: #F0F2F5;
+      --bg-login: #00A884;
+      --bg-login-card: #FFFFFF;
+      --qr-bg: #FFFFFF;
+      --chip-bg: #E9EDEF;
+      --toast-bg: #FFFFFF;
+      --shadow: rgba(0,0,0,0.08);
+      --scrollbar-thumb: #C1C7CD;
+    }
+
+    /* ═══════════════════════════════════════════
+       Base Reset
+       ═══════════════════════════════════════════ */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      margin: 0;
-      background: var(--bg);
-      background-image:
-        radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.08), transparent 40%),
-        radial-gradient(circle at 85% 100%, rgba(37, 211, 102, 0.06), transparent 40%);
-      color: var(--text);
-      font-family: var(--sans);
+      font-family: var(--wa-font);
+      background: var(--bg-app);
+      color: var(--text-primary);
       min-height: 100vh;
-      padding: 32px 24px 80px;
+      min-height: 100dvh;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .wrap {
-      max-width: 1080px;
-      margin: 0 auto;
-    }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
 
-    /* ---------- Header ---------- */
-    header {
+    .hidden { display: none !important; }
+
+    /* ═══════════════════════════════════════════
+       Login Gate
+       ═══════════════════════════════════════════ */
+    .gate {
+      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .title-block .eyebrow {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--accent);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin: 0 0 4px;
-    }
-
-    .title-block h1 {
-      margin: 0;
-      font-size: 26px;
-      font-weight: 700;
-      letter-spacing: -0.01em;
-    }
-
-    .global-status {
-      display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 8px;
-      font-family: var(--mono);
-      font-size: 13px;
-      color: var(--text-muted);
-      padding: 6px 12px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 100px;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      flex-shrink: 0;
-    }
-
-    .dot.connected {
-      background: var(--whatsapp-green);
-      box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.6);
-      animation: pulse 2s infinite;
-    }
-
-    .dot.waiting {
-      background: var(--warning);
-    }
-
-    .dot.off {
-      background: var(--danger);
-    }
-
-    @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5);
-      }
-
-      70% {
-        box-shadow: 0 0 0 6px rgba(37, 211, 102, 0);
-      }
-
-      100% {
-        box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
-      }
-    }
-
-    /* ---------- Grid ---------- */
-    .grid {
-      display: grid;
-      grid-template-columns: 320px 1fr;
-      gap: 20px;
-      align-items: start;
-    }
-
-    @media (max-width: 860px) {
-      .grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
+      justify-content: center;
+      background: var(--bg-login);
       padding: 20px;
     }
 
-    .card h2 {
-      font-size: 13px;
-      font-family: var(--mono);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--text-muted);
-      margin: 0 0 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    [data-theme="light"] .gate::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 222px;
+      background: var(--wa-green);
     }
 
-    /* ---------- Connection card ---------- */
-    .qr-stage {
-      aspect-ratio: 1;
-      background: var(--bg);
+    .gate-card {
+      background: var(--bg-login-card);
+      border-radius: var(--wa-radius-lg);
+      padding: 40px 32px;
+      width: 100%;
+      max-width: 400px;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 4px 24px var(--shadow);
+    }
+
+    .gate-logo {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .gate-logo svg {
+      width: 56px;
+      height: 56px;
+      fill: var(--wa-green);
+    }
+
+    .gate-logo h1 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-top: 12px;
+      color: var(--text-primary);
+    }
+
+    .gate-logo p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .gate-field { margin-bottom: 16px; }
+
+    .gate-field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .gate-field input {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg-input);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--wa-font);
+      outline: none;
+      transition: border-color var(--wa-transition);
+    }
+
+    .gate-field input:focus {
+      border-color: var(--wa-green);
+    }
+
+    .gate-error {
+      color: var(--wa-danger);
+      font-size: 12px;
+      min-height: 18px;
+      margin-top: 4px;
+    }
+
+    .btn {
+      font-family: var(--wa-font);
+      font-weight: 600;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      cursor: pointer;
+      transition: all var(--wa-transition);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-primary {
+      background: var(--wa-green);
+      color: #FFFFFF;
+      width: 100%;
+    }
+    .btn-primary:hover { background: var(--wa-green-hover); }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--bg-hover); }
+
+    .btn-danger {
+      background: transparent;
+      color: var(--wa-danger);
+      border: 1px solid var(--wa-danger);
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--wa-green);
+      padding: 6px 12px;
+      font-size: 13px;
+    }
+
+    .btn-sm {
+      padding: 8px 14px;
+      font-size: 13px;
+    }
+
+    /* ═══════════════════════════════════════════
+       Dashboard Shell
+       ═══════════════════════════════════════════ */
+    .dashboard {
+      display: flex;
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar (Desktop) ── */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sidebar-brand svg {
+      width: 28px;
+      height: 28px;
+      fill: var(--wa-green);
+    }
+
+    .sidebar-brand span {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .sidebar-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background var(--wa-transition);
+      font-size: 18px;
+    }
+    .icon-btn:hover { background: var(--bg-hover); }
+
+    .sidebar-status {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--text-muted);
+    }
+    .status-dot.connected { background: var(--wa-green-light); box-shadow: 0 0 0 0 rgba(37,211,102,0.5); animation: pulse 2s infinite; }
+    .status-dot.waiting { background: var(--wa-warning); }
+    .status-dot.off { background: var(--wa-danger); }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(37,211,102,0.5); }
+      70% { box-shadow: 0 0 0 8px rgba(37,211,102,0); }
+      100% { box-shadow: 0 0 0 0 rgba(37,211,102,0); }
+    }
+
+    .status-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 8px 0;
+      overflow-y: auto;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all var(--wa-transition);
+      font-size: 14px;
+      font-weight: 500;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: var(--wa-font);
+    }
+
+    .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+    .nav-item.active { background: var(--bg-sidebar-active); color: var(--wa-green); }
+    .nav-item .nav-icon { font-size: 20px; width: 24px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Main Content ── */
+    .main-content {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-app);
+    }
+
+    .main-header {
+      padding: 16px 24px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .main-header h2 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .tab-content {
+      padding: 20px 24px;
+      max-width: 720px;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--wa-radius-lg);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 14px;
+    }
+
+    /* ── QR Section ── */
+    .qr-box {
+      aspect-ratio: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--wa-radius);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      position: relative;
       margin-bottom: 14px;
+      max-width: 280px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
-    .qr-stage img {
+    .qr-box img {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      padding: 14px;
-      background: #fff;
+      padding: 12px;
+      background: var(--qr-bg);
     }
 
     .qr-placeholder {
-      font-family: var(--mono);
       font-size: 13px;
       color: var(--text-muted);
       text-align: center;
       padding: 20px;
     }
 
-    .qr-placeholder .cursor {
+    .qr-placeholder .blink {
       display: inline-block;
       width: 8px;
       height: 14px;
-      background: var(--accent);
+      background: var(--wa-green);
       margin-left: 4px;
       animation: blink 1s step-end infinite;
       vertical-align: middle;
     }
 
-    @keyframes blink {
-      50% {
-        opacity: 0;
-      }
-    }
+    @keyframes blink { 50% { opacity: 0; } }
 
     .connected-state {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      color: var(--whatsapp-green);
+      gap: 8px;
+      padding: 20px;
+      color: var(--wa-green);
     }
 
     .connected-state .big-dot {
-      width: 14px;
-      height: 14px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
-      background: var(--whatsapp-green);
-      box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.6);
+      background: var(--wa-green-light);
       animation: pulse 2s infinite;
     }
 
     .connected-number {
-      font-family: var(--mono);
-      font-size: 14px;
-      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
     }
 
     .conn-meta {
-      font-family: var(--mono);
       font-size: 12px;
       color: var(--text-muted);
-      line-height: 1.6;
+      text-align: center;
+      margin-top: 6px;
     }
 
-    button {
-      font-family: var(--sans);
+    /* ── Pairing Code ── */
+    .pairing-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .pairing-label {
+      font-size: 12px;
       font-weight: 600;
-      font-size: 13px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface-raised);
-      color: var(--text);
-      padding: 9px 14px;
-      cursor: pointer;
-      transition: border-color 0.15s, transform 0.05s;
+      color: var(--wa-green);
+      margin-bottom: 8px;
     }
 
-    button:hover {
-      border-color: var(--accent);
+    .input-row {
+      display: flex;
+      gap: 8px;
     }
 
-    button:active {
-      transform: scale(0.98);
+    .input-row input {
+      flex: 1;
     }
 
-    button:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    button.primary {
-      background: var(--accent);
-      border-color: var(--accent-dim);
-      color: #fff;
-    }
-
-    button.primary:hover {
-      background: var(--accent-dim);
-    }
-
-    button.full {
+    /* ── Form Inputs ── */
+    input[type="text"],
+    input[type="tel"],
+    input[type="password"],
+    select {
       width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--wa-font);
+      outline: none;
+      transition: border-color var(--wa-transition);
     }
 
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--wa-green);
     }
 
-    /* ---------- Prompt editor ---------- */
     textarea {
       width: 100%;
-      min-height: 280px;
-      background: var(--bg);
+      min-height: 220px;
+      padding: 14px;
+      background: var(--bg-input);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 13.5px;
-      line-height: 1.65;
-      padding: 16px;
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--wa-font);
+      line-height: 1.6;
       resize: vertical;
+      outline: none;
     }
 
-    textarea:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    .prompt-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 12px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .save-msg {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--whatsapp-green);
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .save-msg.show {
-      opacity: 1;
-    }
-
-    .char-count {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    /* ---------- Toggles ---------- */
+    /* ── Toggles ── */
     .toggle-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 0;
+      padding: 14px 0;
       border-bottom: 1px solid var(--border);
     }
+    .toggle-row:last-child { border-bottom: none; }
 
-    .toggle-row:last-child {
-      border-bottom: none;
-    }
+    .toggle-info { flex: 1; margin-right: 12px; }
 
     .toggle-label {
       font-size: 14px;
@@ -359,22 +581,16 @@
       height: 24px;
       flex-shrink: 0;
     }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
+    .switch input { opacity: 0; width: 0; height: 0; }
 
     .slider {
       position: absolute;
       cursor: pointer;
       inset: 0;
-      background: var(--border);
+      background: var(--border-light);
       border-radius: 100px;
-      transition: background 0.15s;
+      transition: background 0.2s;
     }
-
     .slider::before {
       content: "";
       position: absolute;
@@ -382,250 +598,318 @@
       height: 18px;
       left: 3px;
       top: 3px;
-      background: var(--text);
+      background: #FFF;
       border-radius: 50%;
-      transition: transform 0.15s;
+      transition: transform 0.2s;
     }
+    input:checked + .slider { background: var(--wa-green); }
+    input:checked + .slider::before { transform: translateX(20px); }
 
-    input:checked+.slider {
-      background: var(--whatsapp-green);
-    }
-
-    input:checked+.slider::before {
-      transform: translateX(20px);
-      background: #fff;
-    }
-
-    .switch input:focus-visible+.slider {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    /* ---------- Whitelist ---------- */
-    .whitelist-input-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .whitelist-input-row input {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 13px;
-      padding: 9px 12px;
-    }
-
-    .whitelist-input-row input:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
+    /* ── Chips ── */
     .chip-list {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
+      margin-top: 8px;
     }
 
     .chip {
       display: flex;
       align-items: center;
       gap: 6px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      padding: 6px 10px 6px 12px;
-      font-family: var(--mono);
-      font-size: 12.5px;
+      background: var(--chip-bg);
+      border-radius: 20px;
+      padding: 6px 8px 6px 12px;
+      font-size: 13px;
     }
 
     .chip button {
       background: none;
       border: none;
       color: var(--text-muted);
-      padding: 0;
-      width: 16px;
-      height: 16px;
-      line-height: 1;
-      font-size: 14px;
+      cursor: pointer;
+      font-size: 16px;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       border-radius: 50%;
+      padding: 0;
     }
-
-    .chip button:hover {
-      color: var(--danger);
-    }
+    .chip button:hover { color: var(--wa-danger); background: var(--bg-hover); }
 
     .empty-note {
-      font-family: var(--mono);
       font-size: 12px;
       color: var(--text-muted);
       padding: 8px 0;
     }
 
-    /* ---------- Holding reply ---------- */
-    .holding-input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--sans);
-      font-size: 13.5px;
-      padding: 10px 12px;
-      margin-top: 8px;
+    /* ── Section Labels ── */
+    .section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+      margin-top: 18px;
     }
+    .section-label:first-child { margin-top: 0; }
 
-    .holding-input:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    /* ---------- Setup gate ---------- */
-    .gate {
-      max-width: 420px;
-      margin: 80px auto;
-      text-align: center;
-    }
-
-    .gate .card {
-      text-align: left;
-    }
-
-    .gate input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 14px;
-      padding: 12px 14px;
-      margin: 14px 0;
-    }
-
-    .gate input:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    .gate-error {
-      color: var(--danger);
-      font-size: 13px;
-      font-family: var(--mono);
-      min-height: 18px;
-      margin-top: -4px;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(0);
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: 13px;
-      padding: 10px 18px;
-      border-radius: 10px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-      opacity: 0;
-      transition: opacity 0.2s, transform 0.2s;
-      pointer-events: none;
-      z-index: 50;
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(-6px);
-    }
-
-    .toast.error {
-      border-color: var(--danger);
-      color: var(--danger);
-    }
-
-    .toast.success {
-      border-color: var(--whatsapp-green);
-      color: var(--whatsapp-green);
-    }
-
-    .auth-tabs {
+    /* ── Footer row ── */
+    .footer-row {
       display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 16px;
+    }
+
+    .save-msg {
+      font-size: 12px;
+      color: var(--wa-green);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .save-msg.show { opacity: 1; }
+
+    .char-count {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ── Action row ── */
+    .action-row {
+      display: flex;
+      gap: 10px;
       margin-top: 18px;
     }
 
-    .auth-tab {
-      flex: 1;
-      padding: 8px 12px;
-      background: var(--surface-raised);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      border-radius: 6px;
-      cursor: pointer;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.2s;
+    .action-row .btn { flex: 1; }
+
+    .btn-send {
+      background: rgba(0,168,132,0.12);
+      color: var(--wa-green);
+      border: 1px solid rgba(0,168,132,0.3);
+    }
+    .btn-send:hover {
+      background: rgba(0,168,132,0.2);
     }
 
-    .auth-tab.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #fff;
+    /* ── Last Run ── */
+    .last-run-box {
+      margin-top: 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.7;
+    }
+
+    /* ── Holding Input ── */
+    .holding-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: var(--wa-font);
+      outline: none;
+    }
+    .holding-input:focus { border-color: var(--wa-green); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: var(--toast-bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px var(--shadow);
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 100;
+      font-family: var(--wa-font);
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: var(--wa-danger); color: var(--wa-danger); }
+    .toast.success { border-color: var(--wa-green); color: var(--wa-green); }
+
+    /* ── Logs ── */
+    .logs {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-input);
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid var(--border);
+    }
+
+    /* ═══════════════════════════════════════════
+       Bottom Tab Bar (Mobile)
+       ═══════════════════════════════════════════ */
+    .bottom-tabs {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      z-index: 50;
+      padding: 4px 0;
+      padding-bottom: env(safe-area-inset-bottom, 4px);
+    }
+
+    .bottom-tabs-inner {
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .bottom-tab {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 8px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-family: var(--wa-font);
+      font-weight: 500;
+      cursor: pointer;
+      transition: color var(--wa-transition);
+      flex: 1;
+    }
+    .bottom-tab .tab-icon { font-size: 22px; }
+    .bottom-tab.active { color: var(--wa-green); }
+
+    /* ═══════════════════════════════════════════
+       Responsive
+       ═══════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .bottom-tabs { display: block; }
+
+      .main-content {
+        padding-bottom: 72px;
+      }
+
+      .tab-content {
+        padding: 16px;
+      }
+
+      .main-header h2 {
+        font-size: 15px;
+      }
+
+      .qr-box {
+        max-width: 220px;
+      }
+
+      .action-row {
+        flex-direction: column;
+      }
+
+      .toast {
+        bottom: 90px;
+        left: 16px;
+        right: 16px;
+        transform: translateX(0) translateY(10px);
+      }
+      .toast.show {
+        transform: translateX(0) translateY(0);
+      }
+    }
+
+    @media (max-width: 380px) {
+      .gate-card {
+        padding: 28px 20px;
+      }
+    }
+
+    /* ── Pairing result ── */
+    #pairing-result {
+      display: none;
+      margin-top: 10px;
+      background: var(--bg-input);
+      border: 1px dashed var(--wa-green);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    #pairing-code-display {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--wa-green);
+      letter-spacing: 3px;
+    }
+
+    /* Quotes textarea */
+    #scheduler-quotes-editor {
+      min-height: 120px;
+      font-size: 13px;
+    }
+
+    /* Cron presets */
+    .cron-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .cron-row input { flex: 1; }
+    .cron-row select {
+      width: auto;
+      min-width: 100px;
+      padding: 10px 8px;
+      font-size: 13px;
     }
   </style>
 </head>
 
 <body>
 
-  <!-- ===== Setup gate: Professional Admin Login ===== -->
+  <!-- ===== LOGIN GATE ===== -->
   <div class="gate" id="gate">
-    <div style="text-align:center; margin-bottom:24px;">
-      <img src="favicon.png" alt="WhatsApp AI Logo"
-        style="width:72px; height:72px; border-radius:18px; box-shadow:0 0 25px rgba(34,197,94,0.4); margin-bottom:12px;">
-      <p class="eyebrow" style="color:#22c55e; letter-spacing:2px;">// SECURE GATEWAY</p>
-      <h1
-        style="font-size:28px; background:linear-gradient(135deg, #fff 0%, #a7f3d0 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-        WhatsApp AI Assistant</h1>
-      <p style="color:var(--text-secondary); font-size:13px; margin-top:4px;">Professional AI Engine • Developed by
-        Azhar Khan</p>
-    </div>
-    <div class="card" style="box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(34,197,94,0.3);">
+    <div class="gate-card">
+      <div class="gate-logo">
+        <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.019-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        <h1>WhatsApp Bot</h1>
+        <p>Dashboard Login</p>
+      </div>
 
-      <!-- Empty gate-url ensures app.js automatically connects to the exact domain hosting the web dashboard -->
       <input type="hidden" id="gate-url" value="">
 
-      <div class="auth-tabs" style="display:none;">
-        <div class="auth-tab active" id="tab-admin">👤 Admin Login</div>
-        <div class="auth-tab" id="tab-phone">📱 WhatsApp Phone</div>
-        <div class="auth-tab" id="tab-key">🔑 Dashboard Key</div>
-      </div>
-
-      <!-- Admin Login Section (Only Option Shown) -->
       <div id="section-admin">
-        <h2 style="color:#e2e8f0;">Admin Username</h2>
-        <input type="text" id="gate-admin-user" value="admin" placeholder="Username (default: admin)" autocomplete="off"
-          style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
-        <h2 style="margin-top:16px; color:#e2e8f0;">Admin Password</h2>
-        <input type="password" id="gate-admin-pass" value="admin123" placeholder="Password (default: admin123)"
-          autocomplete="off" style="background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.15);">
+        <div class="gate-field">
+          <label>Username</label>
+          <input type="text" id="gate-admin-user" value="admin" autocomplete="off">
+        </div>
+        <div class="gate-field">
+          <label>Password</label>
+          <input type="password" id="gate-admin-pass" value="admin123" autocomplete="off">
+        </div>
         <div class="gate-error" id="gate-error-admin"></div>
-        <button class="primary full" id="gate-admin-submit"
-          style="margin-top:20px; height:46px; font-size:15px; font-weight:700; box-shadow:0 4px 15px rgba(34,197,94,0.4);">Unlock
-          Assistant →</button>
+        <button class="btn btn-primary" id="gate-admin-submit" style="margin-top:8px;">Login</button>
       </div>
 
-      <!-- Hidden Phone/Key sections to preserve app.js compatibility -->
+      <!-- Hidden sections for app.js compatibility -->
       <div id="section-phone" style="display:none;">
         <input type="tel" id="gate-phone">
         <input type="text" id="gate-otp">
@@ -639,136 +923,136 @@
         <button id="gate-submit"></button>
       </div>
     </div>
-    <div style="text-align:center; margin-top:20px; font-size:12px; color:var(--text-muted);">
-      ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant
-    </div>
   </div>
 
-  <!-- ===== Main dashboard ===== -->
-  <div class="wrap hidden" id="dashboard">
-    <header style="border-bottom:1px solid rgba(34,197,94,0.2); padding-bottom:16px; margin-bottom:24px;">
-      <div style="display:flex; align-items:center; gap:14px;">
-        <img src="favicon.png" alt="Icon"
-          style="width:42px; height:42px; border-radius:10px; box-shadow:0 0 12px rgba(34,197,94,0.3);">
-        <div class="title-block">
-          <p class="eyebrow" style="color:#22c55e;">// autonomous ai engine</p>
-          <h1
-            style="font-size:22px; background:linear-gradient(90deg, #fff, #86efac); -webkit-background-clip:text; -webkit-text-fill-color:transparent;">
-            WhatsApp AI Assistant</h1>
+  <!-- ===== DASHBOARD ===== -->
+  <div class="dashboard hidden" id="dashboard">
+
+    <!-- ── Sidebar (Desktop) ── -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-brand">
+          <svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.019-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          <span>WhatsApp Bot</span>
+        </div>
+        <div class="sidebar-actions">
+          <button class="icon-btn" id="theme-toggle-btn" title="Toggle theme">🌙</button>
+          <button class="icon-btn" id="disconnect-btn" title="Logout">⏻</button>
         </div>
       </div>
-      <div class="global-status">
-        <span class="dot off" id="header-dot"></span>
-        <span id="header-status">checking…</span>
-        <button id="disconnect-btn"
-          style="padding:5px 12px; font-size:11px; margin-left:10px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171; border-radius:6px; font-weight:600; cursor:pointer;">Logout</button>
-      </div>
-    </header>
 
-    <div class="grid">
-      <!-- LEFT COLUMN -->
-      <div style="display:flex; flex-direction:column; gap:20px;">
-
-        <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
-          <h2 style="color:#86efac;">WhatsApp Gateway Connection</h2>
-          <div class="qr-stage" id="qr-stage">
-            <div class="qr-placeholder" id="qr-placeholder">
-              waiting for backend<span class="cursor"></span>
-            </div>
-          </div>
-          <div class="conn-meta" id="conn-meta"></div>
-
-          <div id="qr-pairing-section" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
-            <div style="font-size:12px; font-weight:600; color:#86efac; margin-bottom:8px;">📱 LINK WITH PHONE NUMBER
-            </div>
-            <div style="display:flex; gap:8px;">
-              <input type="tel" id="pairing-phone" placeholder="e.g. +14155551234" autocomplete="off"
-                style="flex:1; margin:0;">
-              <button class="primary" id="pairing-btn" style="padding:0 14px; white-space:nowrap;">Get Code</button>
-            </div>
-            <div id="pairing-result"
-              style="display:none; margin-top:10px; background:var(--input-bg); border:1px dashed var(--primary); border-radius:8px; padding:12px; text-align:center;">
-              <div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Enter on phone (Linked Devices →
-                Link with phone number):</div>
-              <div id="pairing-code-display"
-                style="font-size:22px; font-weight:800; color:var(--primary); letter-spacing:3px;"></div>
-            </div>
-            <div class="gate-error" id="pairing-error" style="margin-top:6px;"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Live Event Stream</h2>
-          <div class="logs" id="logs"></div>
-        </div>
-
+      <div class="sidebar-status">
+        <span class="status-dot off" id="header-dot"></span>
+        <span class="status-text" id="header-status">checking…</span>
       </div>
 
-      <!-- RIGHT COLUMN -->
-      <div style="display:flex; flex-direction:column; gap:20px;">
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="connection">
+          <span class="nav-icon">📡</span> Connection
+        </button>
+        <button class="nav-item" data-tab="prompt">
+          <span class="nav-icon">🤖</span> AI Prompt
+        </button>
+        <button class="nav-item" data-tab="scheduler">
+          <span class="nav-icon">📅</span> Scheduler
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <span class="nav-icon">⚙️</span> Settings
+        </button>
+      </nav>
+    </aside>
 
-        <div class="card" style="border:1px solid rgba(34,197,94,0.25);">
-          <h2 style="color:#86efac;">AI Brain Prompt</h2>
-          <textarea id="prompt-editor" spellcheck="false" placeholder="Loading…"
-            style="border:1px solid rgba(34,197,94,0.3);"></textarea>
-          <div class="prompt-footer">
-            <span class="char-count" id="char-count">0 chars</span>
-            <div style="display:flex; align-items:center; gap:14px;">
-              <span class="save-msg" id="prompt-saved">✓ saved</span>
-              <button class="primary" id="prompt-save-btn">Save prompt</button>
+    <!-- ── Main Content ── -->
+    <div class="main-content">
+      <div class="main-header">
+        <h2 id="main-title">Connection</h2>
+        <!-- Mobile: theme + logout -->
+        <div class="sidebar-actions" style="display:none;" id="mobile-actions">
+          <button class="icon-btn" id="theme-toggle-btn-mobile" title="Toggle theme">🌙</button>
+          <button class="icon-btn" id="disconnect-btn-mobile" title="Logout">⏻</button>
+        </div>
+      </div>
+
+      <div class="tab-content">
+
+        <!-- ═══ TAB: Connection ═══ -->
+        <div class="tab-panel active" id="tab-connection">
+          <div class="card">
+            <div class="card-title">WhatsApp Connection</div>
+            <div class="qr-box" id="qr-stage">
+              <div class="qr-placeholder" id="qr-placeholder">
+                Waiting for backend<span class="blink"></span>
+              </div>
+            </div>
+            <div class="conn-meta" id="conn-meta"></div>
+
+            <div class="pairing-section" id="qr-pairing-section">
+              <div class="pairing-label">📱 Link with Phone Number</div>
+              <div class="input-row">
+                <input type="tel" id="pairing-phone" placeholder="e.g. +14155551234" autocomplete="off">
+                <button class="btn btn-primary btn-sm" id="pairing-btn">Get Code</button>
+              </div>
+              <div id="pairing-result">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Enter on phone (Linked Devices → Link with phone number):</div>
+                <div id="pairing-code-display"></div>
+              </div>
+              <div class="gate-error" id="pairing-error"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Event Log</div>
+            <div class="logs" id="logs"></div>
+          </div>
+        </div>
+
+        <!-- ═══ TAB: AI Prompt ═══ -->
+        <div class="tab-panel" id="tab-prompt">
+          <div class="card">
+            <div class="card-title">System Prompt</div>
+            <textarea id="prompt-editor" spellcheck="false" placeholder="Enter your AI system prompt here..."></textarea>
+            <div class="footer-row">
+              <span class="char-count" id="char-count">0 chars</span>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span class="save-msg" id="prompt-saved">✓ Saved</span>
+                <button class="btn btn-primary btn-sm" id="prompt-save-btn">Save Prompt</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Holding Reply</div>
+            <div class="toggle-sub" style="margin-bottom:10px;">Auto-reply when someone asks about meetings, money, or anything requiring personal confirmation.</div>
+            <input type="text" class="holding-input" id="holding-reply-input" placeholder="e.g. I'll get back to you on this personally">
+            <div class="footer-row">
+              <span></span>
+              <button class="btn btn-primary btn-sm" id="holding-save-btn">Save</button>
             </div>
           </div>
         </div>
 
-        <div class="card">
-          <h2>Holding Reply</h2>
-          <div class="toggle-sub">Sent when something needs your personal input — meetings, money, anything you'd want
-            to handle yourself.</div>
-          <input type="text" class="holding-input" id="holding-reply-input"
-            placeholder="Yeh wala main personally dekh ke reply karunga, thoda wait karo">
-          <div class="prompt-footer">
-            <span></span>
-            <button id="holding-save-btn">Save</button>
-          </div>
-        </div>
+        <!-- ═══ TAB: Scheduler ═══ -->
+        <div class="tab-panel" id="tab-scheduler">
+          <div class="card">
+            <div class="card-title">Daily Quote & Ad Scheduler</div>
 
-        <div class="card">
-          <h2>Security Whitelist</h2>
-          <div class="whitelist-input-row">
-            <input type="text" id="whitelist-input" placeholder="919876543210 (with country code, no +)">
-            <button class="primary" id="whitelist-add-btn">Add</button>
-          </div>
-          <div class="chip-list" id="whitelist-chips"></div>
-          <div class="empty-note hidden" id="whitelist-empty">No numbers yet — nobody can message the bot until you add
-            at least one.</div>
-        </div>
-
-        <!-- ===== Scheduler Card ===== -->
-        <div class="card" style="border:1px solid rgba(124,92,255,0.3);">
-          <h2 style="color:#a78bfa;">📅 Daily Quote & Ad Scheduler</h2>
-
-          <!-- Enable/Disable Toggle -->
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-label">Scheduler Enabled</div>
-              <div class="toggle-sub">Send daily quote + ad image to groups & channels</div>
+            <!-- Enable Toggle -->
+            <div class="toggle-row" style="border-bottom:1px solid var(--border);">
+              <div class="toggle-info">
+                <div class="toggle-label">Scheduler Enabled</div>
+                <div class="toggle-sub">Send daily quote + ad to groups & channels</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-scheduler">
+                <span class="slider"></span>
+              </label>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="toggle-scheduler">
-              <span class="slider"></span>
-            </label>
-          </div>
 
-          <!-- Schedule Time -->
-          <div style="margin-top:16px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono);">
-              ⏰ Schedule (Cron Expression)
-            </div>
-            <div style="display:flex; gap:8px; align-items:center;">
-              <input type="text" id="scheduler-cron" placeholder="0 9 * * *"
-                style="flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:13px; padding:9px 12px;">
-              <select id="scheduler-cron-presets"
-                style="background:var(--surface-raised); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:12px; padding:9px 8px; cursor:pointer;">
+            <!-- Schedule Time -->
+            <div class="section-label" style="margin-top:16px;">⏰ Schedule Time</div>
+            <div class="cron-row">
+              <input type="text" id="scheduler-cron" placeholder="0 9 * * *">
+              <select id="scheduler-cron-presets">
                 <option value="">Presets…</option>
                 <option value="0 7 * * *">7:00 AM</option>
                 <option value="0 8 * * *">8:00 AM</option>
@@ -780,109 +1064,130 @@
                 <option value="*/5 * * * *">Every 5 min (test)</option>
               </select>
             </div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-family:var(--mono);">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
               Timezone: <span id="scheduler-timezone-label">Asia/Kolkata</span>
             </div>
-          </div>
 
-          <!-- Target Groups -->
-          <div style="margin-top:18px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono);">
-              👥 Target Groups
-            </div>
-            <div class="whitelist-input-row">
-              <input type="text" id="scheduler-group-input" list="available-groups" placeholder="Select or type group name/ID (e.g. 120363XXXXX@g.us)">
+            <!-- Target Groups -->
+            <div class="section-label">👥 Target Groups</div>
+            <div class="input-row">
+              <input type="text" id="scheduler-group-input" list="available-groups" placeholder="Type group name or ID">
               <datalist id="available-groups"></datalist>
-              <button class="primary" id="scheduler-group-add-btn">Add</button>
+              <button class="btn btn-primary btn-sm" id="scheduler-group-add-btn">Add</button>
             </div>
             <div class="chip-list" id="scheduler-group-chips"></div>
-            <div class="empty-note" id="scheduler-group-empty" style="font-size:11px;">No groups added yet</div>
-          </div>
+            <div class="empty-note" id="scheduler-group-empty">No groups added</div>
 
-          <!-- Target Channels -->
-          <div style="margin-top:16px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono);">
-              📢 Target Channels (Newsletters)
-            </div>
-            <div class="whitelist-input-row">
-              <input type="text" id="scheduler-channel-input" list="available-channels" placeholder="Select or type channel name/ID">
+            <!-- Target Channels -->
+            <div class="section-label">📢 Target Channels</div>
+            <div class="input-row">
+              <input type="text" id="scheduler-channel-input" list="available-channels" placeholder="Type channel name or ID">
               <datalist id="available-channels"></datalist>
-              <button class="primary" id="scheduler-channel-add-btn">Add</button>
+              <button class="btn btn-primary btn-sm" id="scheduler-channel-add-btn">Add</button>
             </div>
             <div class="chip-list" id="scheduler-channel-chips"></div>
-            <div class="empty-note" id="scheduler-channel-empty" style="font-size:11px;">No channels added yet</div>
-          </div>
+            <div class="empty-note" id="scheduler-channel-empty">No channels added</div>
 
-          <!-- Ad Image Folder -->
-          <div style="margin-top:16px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono);">
-              🖼️ Ad Image Folder
-            </div>
-            <div style="display:flex; gap:8px;">
-              <input type="text" id="scheduler-ad-dir" placeholder="Leave empty for default (public/ads)"
-                style="flex:1; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:13px; padding:9px 12px;">
-              <button class="primary" id="scheduler-ad-upload-btn">Upload Folder</button>
+            <!-- Ad Images -->
+            <div class="section-label">🖼️ Ad Images</div>
+            <div class="input-row">
+              <input type="text" id="scheduler-ad-dir" placeholder="Leave empty for default folder">
+              <button class="btn btn-secondary btn-sm" id="scheduler-ad-upload-btn">Upload</button>
               <input type="file" id="scheduler-ad-upload-input" webkitdirectory directory multiple style="display:none;">
             </div>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-family:var(--mono);">
-              Available images: <span id="scheduler-ad-count" style="color:#a78bfa; font-weight:600;">—</span>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+              Available: <span id="scheduler-ad-count" style="color:var(--wa-green);font-weight:600;">—</span> images
             </div>
-          </div>
 
-          <!-- Ad Caption -->
-          <div style="margin-top:16px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono);">
-              💬 Ad Image Caption (optional)
-            </div>
-            <input type="text" id="scheduler-ad-caption" placeholder="e.g. Check out our latest offers!"
-              style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--sans); font-size:13.5px; padding:10px 12px;">
-          </div>
+            <!-- Ad Caption -->
+            <div class="section-label">💬 Ad Caption</div>
+            <input type="text" id="scheduler-ad-caption" placeholder="Optional caption for ad images">
 
-          <!-- Quotes Editor -->
-          <div style="margin-top:16px;">
-            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono); display:flex; justify-content:space-between; align-items:center;">
-              <span>📝 Quotes List (Fallback)</span>
+            <!-- Quotes -->
+            <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>📝 Quotes</span>
               <div>
-                <button class="primary" id="scheduler-quotes-upload-btn" style="padding:4px 8px; font-size:11px;">Upload .txt</button>
+                <button class="btn btn-ghost btn-sm" id="scheduler-quotes-upload-btn">Upload .txt</button>
                 <input type="file" id="scheduler-quotes-upload-input" accept=".txt" style="display:none;">
               </div>
             </div>
-            <textarea id="scheduler-quotes-editor" spellcheck="false" placeholder="Loading quotes..."
-              style="width:100%; height:120px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:12px; padding:10px; resize:vertical;"></textarea>
-            <div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-family:var(--mono); display:flex; justify-content:space-between;">
-              <span>Format: quote text | author name</span>
-              <button class="primary" id="scheduler-quotes-save-btn" style="padding:4px 8px; font-size:11px;">Save Quotes</button>
+            <textarea id="scheduler-quotes-editor" spellcheck="false" placeholder="One quote per line: quote text | author"></textarea>
+            <div class="footer-row" style="margin-top:6px;">
+              <span style="font-size:11px;color:var(--text-muted);">Format: quote text | author name</span>
+              <button class="btn btn-primary btn-sm" id="scheduler-quotes-save-btn">Save Quotes</button>
+            </div>
+
+            <!-- Actions -->
+            <div class="action-row">
+              <button class="btn btn-primary" id="scheduler-save-btn">💾 Save Settings</button>
+              <button class="btn btn-send" id="scheduler-send-now-btn">🚀 Send Now</button>
+            </div>
+
+            <!-- Last Run -->
+            <div id="scheduler-last-run" style="display:none;">
+              <div class="section-label">Last Run</div>
+              <div class="last-run-box" id="scheduler-last-run-info"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ TAB: Settings ═══ -->
+        <div class="tab-panel" id="tab-settings">
+          <div class="card">
+            <div class="card-title">Bot Controls</div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Bot Enabled</div>
+                <div class="toggle-sub">When off, the bot will not reply to any messages</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-enabled">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Whitelist Mode</div>
+                <div class="toggle-sub">Only reply to whitelisted numbers</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-whitelist">
+                <span class="slider"></span>
+              </label>
             </div>
           </div>
 
-          <!-- Save + Send Now -->
-          <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
-            <button class="primary" id="scheduler-save-btn" style="flex:1;">💾 Save Scheduler Settings</button>
-            <button id="scheduler-send-now-btn"
-              style="flex:1; background:rgba(37,211,102,0.15); border:1px solid rgba(37,211,102,0.4); color:#25D366;">
-              🚀 Send Now
-            </button>
-          </div>
-
-          <!-- Last Run Status -->
-          <div id="scheduler-last-run" style="margin-top:14px; display:none;">
-            <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono);">
-              Last Run
+          <div class="card">
+            <div class="card-title">Whitelisted Numbers</div>
+            <div class="input-row" style="margin-bottom:8px;">
+              <input type="text" id="whitelist-input" placeholder="919876543210 (with country code, no +)">
+              <button class="btn btn-primary btn-sm" id="whitelist-add-btn">Add</button>
             </div>
-            <div id="scheduler-last-run-info"
-              style="font-family:var(--mono); font-size:12px; color:var(--text-muted); background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; line-height:1.6;">
-            </div>
+            <div class="chip-list" id="whitelist-chips"></div>
+            <div class="empty-note hidden" id="whitelist-empty">No numbers added yet</div>
           </div>
         </div>
 
       </div>
     </div>
 
-    <footer
-      style="margin-top:36px; padding:20px 0; border-top:1px solid rgba(255,255,255,0.08); text-align:center; font-size:13px; color:var(--text-secondary);">
-      ⚡ Designed & Developed by <strong style="color:#22c55e;">Azhar Khan</strong> — Professional WhatsApp AI Assistant
-      • Powered by Autonomous AI
-    </footer>
+    <!-- ── Bottom Tab Bar (Mobile) ── -->
+    <div class="bottom-tabs">
+      <div class="bottom-tabs-inner">
+        <button class="bottom-tab active" data-tab="connection">
+          <span class="tab-icon">📡</span> Connect
+        </button>
+        <button class="bottom-tab" data-tab="prompt">
+          <span class="tab-icon">🤖</span> Prompt
+        </button>
+        <button class="bottom-tab" data-tab="scheduler">
+          <span class="tab-icon">📅</span> Schedule
+        </button>
+        <button class="bottom-tab" data-tab="settings">
+          <span class="tab-icon">⚙️</span> Settings
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>

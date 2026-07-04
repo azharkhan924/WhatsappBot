@@ -275,30 +275,30 @@ function renderStatus(state) {
   const qrStage = $('qr-stage');
   const meta = $('conn-meta');
 
-  dot.className = 'dot';
+  dot.className = 'status-dot';
   if (state.status === 'connected') {
     dot.classList.add('connected');
-    label.textContent = 'connected';
+    label.textContent = 'Connected';
     qrStage.innerHTML = `
       <div class="connected-state">
         <div class="big-dot"></div>
-        <div class="connected-number">${state.connectedNumber ? '+' + state.connectedNumber : 'linked'}</div>
+        <div class="connected-number">${state.connectedNumber ? '+' + state.connectedNumber : 'Linked'}</div>
       </div>`;
     meta.textContent = 'WhatsApp Web session active.';
   } else if (state.status === 'qr' && state.qrDataUrl) {
     dot.classList.add('waiting');
-    label.textContent = 'scan to connect';
+    label.textContent = 'Scan to connect';
     qrStage.innerHTML = `<img src="${state.qrDataUrl}" alt="WhatsApp QR code">`;
     meta.textContent = 'Open WhatsApp → Linked devices → Link a device.';
   } else if (state.status === 'disconnected') {
     dot.classList.add('off');
-    label.textContent = 'disconnected';
-    qrStage.innerHTML = `<div class="qr-placeholder">session ended — tap "Generate new QR"</div>`;
+    label.textContent = 'Disconnected';
+    qrStage.innerHTML = `<div class="qr-placeholder">Session ended</div>`;
     meta.textContent = '';
   } else {
     dot.classList.add('waiting');
-    label.textContent = 'initializing…';
-    qrStage.innerHTML = `<div class="qr-placeholder">waiting for backend<span class="cursor"></span></div>`;
+    label.textContent = 'Initializing…';
+    qrStage.innerHTML = `<div class="qr-placeholder">Waiting for backend<span class="blink"></span></div>`;
     meta.textContent = '';
   }
 }
@@ -524,7 +524,7 @@ function removeFromWhitelist(number) {
 }
 
 // ===== Disconnect / Reset =====
-$('disconnect-btn')?.addEventListener('click', () => {
+function doLogout() {
   localStorage.removeItem('bot_api_base');
   localStorage.removeItem('bot_dashboard_key');
   API_BASE = '';
@@ -532,7 +532,9 @@ $('disconnect-btn')?.addEventListener('click', () => {
   if (socket) socket.disconnect();
   clearInterval(pollTimer);
   showGate();
-});
+}
+$('disconnect-btn')?.addEventListener('click', doLogout);
+$('disconnect-btn-mobile')?.addEventListener('click', doLogout);
 
 // ===== Pairing Code (Link with phone number) =====
 $('pairing-btn')?.addEventListener('click', async () => {
@@ -947,6 +949,78 @@ $('scheduler-send-now-btn')?.addEventListener('click', async () => {
   }
 });
 
+// ===== Tab Switching =====
+const TAB_TITLES = {
+  connection: 'Connection',
+  prompt: 'AI Prompt',
+  scheduler: 'Scheduler',
+  settings: 'Settings',
+};
+
+function switchTab(tabName) {
+  // Hide all panels
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  // Show target panel
+  const panel = $('tab-' + tabName);
+  if (panel) panel.classList.add('active');
+
+  // Update sidebar nav
+  document.querySelectorAll('.nav-item').forEach(n => {
+    n.classList.toggle('active', n.dataset.tab === tabName);
+  });
+
+  // Update bottom tabs
+  document.querySelectorAll('.bottom-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tabName);
+  });
+
+  // Update header title
+  if ($('main-title')) $('main-title').textContent = TAB_TITLES[tabName] || tabName;
+}
+
+// Bind sidebar nav clicks
+document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// Bind bottom tab clicks
+document.querySelectorAll('.bottom-tab[data-tab]').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ===== Theme Toggle =====
+function getStoredTheme() {
+  return localStorage.getItem('wa-bot-theme') || 'dark';
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('wa-bot-theme', theme);
+  const icon = theme === 'dark' ? '☀️' : '🌙';
+  if ($('theme-toggle-btn')) $('theme-toggle-btn').textContent = icon;
+  if ($('theme-toggle-btn-mobile')) $('theme-toggle-btn-mobile').textContent = icon;
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+$('theme-toggle-btn')?.addEventListener('click', toggleTheme);
+$('theme-toggle-btn-mobile')?.addEventListener('click', toggleTheme);
+
+// Apply stored theme on load
+applyTheme(getStoredTheme());
+
+// Show mobile actions on small screens
+function handleResize() {
+  const mobile = window.innerWidth <= 768;
+  const mobileActions = $('mobile-actions');
+  if (mobileActions) mobileActions.style.display = mobile ? 'flex' : 'none';
+}
+window.addEventListener('resize', handleResize);
+handleResize();
+
 // ===== Init =====
 function init() {
   showDashboard();
@@ -954,6 +1028,7 @@ function init() {
   startPollFallback();
   loadConfig();
   loadSchedulerStatus();
+  handleResize();
 }
 
 // Auto-fill gate URL with current origin if empty
