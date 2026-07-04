@@ -878,6 +878,16 @@ async function loadAvailableChats() {
   }
 }
 
+$('refresh-chats-btn')?.addEventListener('click', async () => {
+  const btn = $('refresh-chats-btn');
+  btn.textContent = '🔄 Loading...';
+  btn.disabled = true;
+  await loadAvailableChats();
+  toast('Chat lists refreshed!', 'success');
+  btn.textContent = '🔄 Refresh';
+  btn.disabled = false;
+});
+
 // Quotes Editor
 async function loadQuotes() {
   try {
