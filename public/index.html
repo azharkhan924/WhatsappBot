@@ -523,6 +523,11 @@
       min-width: 120px;
     }
 
+    .input-row .btn {
+      width: auto !important;
+      flex-shrink: 0;
+    }
+
     /* ── Form Inputs ── */
     input[type="text"],
     input[type="tel"],
@@ -924,7 +929,8 @@
     .phone-input-container {
       display: flex;
       align-items: center;
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       border: 1.5px solid var(--border-light);
       border-radius: 10px;
       background: var(--bg-input);
