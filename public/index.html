@@ -395,22 +395,24 @@
       font-weight: 600;
     }
 
-    .tab-content {
-      padding: 20px 24px;
-      max-width: 720px;
-    }
-
-    .tab-panel { display: none; }
-    .tab-panel.active { display: block; }
-
-    /* ── Cards ── */
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--wa-radius-lg);
-      padding: 20px;
-      margin-bottom: 16px;
-    }
+     .tab-content {
+       padding: 20px 24px;
+       width: 100%;
+       max-width: 720px;
+     }
+ 
+     .tab-panel { display: none; }
+     .tab-panel.active { display: block; }
+ 
+     /* ── Cards ── */
+     .card {
+       background: var(--bg-card);
+       border: 1px solid var(--border);
+       border-radius: var(--wa-radius-lg);
+       padding: 20px;
+       margin-bottom: 16px;
+       width: 100%;
+     }
 
     .card-title {
       font-size: 13px;
@@ -516,8 +518,8 @@
     }
 
     .input-row input {
-      flex: 1 1 0%;
-      min-width: 0;
+      flex: 1;
+      min-width: 120px;
     }
 
     /* ── Form Inputs ── */
@@ -902,8 +904,8 @@
       width: 100%;
     }
     .cron-row input {
-      flex: 1 1 0%;
-      min-width: 0;
+      flex: 1;
+      min-width: 100px;
     }
     .cron-row select {
       width: auto;
