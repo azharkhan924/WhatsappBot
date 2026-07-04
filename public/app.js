@@ -7,6 +7,20 @@ let promptDirty = false;
 
 const $ = (id) => document.getElementById(id);
 
+function getFormattedPhone(inputId, selectId) {
+  let phone = $(inputId).value.trim();
+  const countryCode = $(selectId)?.value || '91';
+  if (phone) {
+    const cleanNum = phone.replace(/[^0-9]/g, '');
+    if (!phone.startsWith('+') && !cleanNum.startsWith(countryCode)) {
+      phone = `+${countryCode}${cleanNum}`;
+    } else if (!phone.startsWith('+')) {
+      phone = `+${cleanNum}`;
+    }
+  }
+  return phone;
+}
+
 // ===== Toast =====
 function toast(msg, type = '') {
   const el = $('toast');
@@ -113,7 +127,7 @@ $('gate-admin-submit')?.addEventListener('click', async () => {
 
 $('gate-send-otp')?.addEventListener('click', async () => {
   const url = getCleanGateUrl();
-  const phone = $('gate-phone').value.trim();
+  const phone = getFormattedPhone('gate-phone', 'gate-country-code');
   $('gate-error-phone').textContent = '';
 
   if (!url || !phone) {
@@ -154,7 +168,7 @@ $('gate-send-otp')?.addEventListener('click', async () => {
 
 $('gate-verify-otp')?.addEventListener('click', async () => {
   const url = getCleanGateUrl();
-  const phone = $('gate-phone').value.trim();
+  const phone = getFormattedPhone('gate-phone', 'gate-country-code');
   const otp = $('gate-otp').value.trim();
   $('gate-error-phone').textContent = '';
 
@@ -389,19 +403,67 @@ async function loadConfig() {
   }
 }
 
+function setPhoneAndSelect(inputId, selectId, fullNumber) {
+  const selectEl = $(selectId);
+  const inputEl = $(inputId);
+  if (!selectEl || !inputEl) return;
+  
+  if (!fullNumber) {
+    inputEl.value = '';
+    selectEl.value = '91'; // default to +91
+    return;
+  }
+  
+  // Clean all non-digits
+  const digits = String(fullNumber).replace(/[^0-9]/g, '');
+  
+  // Country codes ordered by descending length to match longest prefix first
+  const codes = ['971', '880', '966', '91', '92', '62', '60', '65', '44', '1'];
+  
+  let matchedCode = '91';
+  let restNumber = digits;
+  
+  for (const code of codes) {
+    if (digits.startsWith(code) && digits.length > code.length) {
+      matchedCode = code;
+      restNumber = digits.substring(code.length);
+      break;
+    }
+  }
+  
+  selectEl.value = matchedCode;
+  inputEl.value = restNumber;
+}
+
 function renderConfig(cfg) {
   if ($('prompt-editor')) $('prompt-editor').value = cfg.systemPrompt || '';
   updateCharCount();
   if ($('toggle-enabled')) $('toggle-enabled').checked = !!cfg.botEnabled;
   if ($('toggle-whitelist')) $('toggle-whitelist').checked = !!cfg.whitelistEnabled;
   if ($('holding-reply-input')) $('holding-reply-input').value = cfg.holdingReply || '';
-  if ($('admin-notify-number')) $('admin-notify-number').value = cfg.adminNotifyNumber || '';
+  if ($('admin-notify-number')) {
+    setPhoneAndSelect('admin-notify-number', 'admin-notify-country-code', cfg.adminNotifyNumber);
+  }
   if ($('auto-pause-hours')) $('auto-pause-hours').value = cfg.autoPauseDurationHours !== undefined ? cfg.autoPauseDurationHours : 12;
   renderWhitelist(cfg.whitelist || []);
 }
 
-$('admin-notify-number')?.addEventListener('change', async (e) => {
-  const adminNotifyNumber = e.target.value.trim().replace(/[^0-9]/g, '');
+async function saveAdminNotifyNumber() {
+  const number = $('admin-notify-number').value.trim().replace(/[^0-9]/g, '');
+  if (!number) {
+    try {
+      currentConfig = await api('/api/config', {
+        method: 'PUT',
+        body: JSON.stringify({ adminNotifyNumber: '' }),
+      });
+      toast('Admin notification number updated', 'success');
+    } catch (err) {
+      toast('Failed to update admin notify number', 'error');
+    }
+    return;
+  }
+  const countryCode = $('admin-notify-country-code').value;
+  const adminNotifyNumber = countryCode + number;
   try {
     currentConfig = await api('/api/config', {
       method: 'PUT',
@@ -411,7 +473,10 @@ $('admin-notify-number')?.addEventListener('change', async (e) => {
   } catch (err) {
     toast('Failed to update admin notify number', 'error');
   }
-});
+}
+
+$('admin-notify-number')?.addEventListener('change', saveAdminNotifyNumber);
+$('admin-notify-country-code')?.addEventListener('change', saveAdminNotifyNumber);
 
 $('auto-pause-hours')?.addEventListener('change', async (e) => {
   const autoPauseDurationHours = parseInt(e.target.value, 10) || 12;
@@ -656,7 +721,7 @@ $('hard-reset-btn')?.addEventListener('click', async () => {
 
 // ===== Pairing Code (Link with phone number) =====
 $('pairing-btn')?.addEventListener('click', async () => {
-  const phone = $('pairing-phone').value.trim();
+  const phone = getFormattedPhone('pairing-phone', 'pairing-country-code');
   $('pairing-error').textContent = '';
   if (!phone) {
     $('pairing-error').textContent = 'Enter your WhatsApp phone number.';
