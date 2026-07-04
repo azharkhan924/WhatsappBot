@@ -675,6 +675,67 @@ $('scheduler-cron-presets')?.addEventListener('change', (e) => {
   e.target.value = ''; // reset dropdown
 });
 
+// Ad folder upload
+$('scheduler-ad-upload-btn')?.addEventListener('click', () => {
+  $('scheduler-ad-upload-input')?.click();
+});
+
+$('scheduler-ad-upload-input')?.addEventListener('change', async (e) => {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
+
+  const formData = new FormData();
+  let imageCount = 0;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (file.type.startsWith('image/')) {
+      formData.append('images', file);
+      imageCount++;
+    }
+  }
+
+  if (imageCount === 0) {
+    toast('No images found in the selected folder.', 'error');
+    return;
+  }
+
+  const btn = $('scheduler-ad-upload-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Uploading...';
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/scheduler/ads/upload`, {
+      method: 'POST',
+      headers: {
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to upload images.');
+    }
+    toast(`Successfully uploaded ${data.count} images!`, 'success');
+    // Clear the custom dir input so it uses the default one where we uploaded
+    if ($('scheduler-ad-dir')) {
+      $('scheduler-ad-dir').value = '';
+      $('scheduler-save-btn')?.click(); // trigger save to clear config and refresh status
+    } else {
+      loadSchedulerStatus();
+    }
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Upload Folder';
+    }
+    e.target.value = ''; // clear input
+  }
+});
+
 // Load scheduler status from backend
 async function loadSchedulerStatus() {
   try {

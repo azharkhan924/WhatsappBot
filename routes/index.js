@@ -36,4 +36,29 @@ router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.po
 router.get(['/api/scheduler/status', '/scheduler/status'], dashboardAuth, controller.getSchedulerStatus);
 router.post(['/api/scheduler/trigger', '/scheduler/trigger'], dashboardAuth, controller.postTriggerScheduler);
 
+// Ad images upload route
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Determine target directory, default to public/ads
+    const config = require('../config');
+    const adDir = config.scheduler.adImageDir || path.join(__dirname, '..', 'public', 'ads');
+    // Ensure directory exists
+    if (!fs.existsSync(adDir)) {
+      fs.mkdirSync(adDir, { recursive: true });
+    }
+    cb(null, adDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage });
+router.post(['/api/scheduler/ads/upload', '/scheduler/ads/upload'], dashboardAuth, upload.array('images'), (req, res) => {
+  res.json({ success: true, count: req.files ? req.files.length : 0 });
+});
+
 module.exports = router;
