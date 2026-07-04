@@ -857,7 +857,7 @@ $('scheduler-ad-upload-input')?.addEventListener('change', async (e) => {
 });
 
 // Load available chats from backend to populate datalists
-async function loadAvailableChats() {
+async function loadAvailableChats(showToast = false) {
   try {
     const res = await fetch(`${API_BASE}/api/scheduler/available-chats`, {
       headers: { 'x-dashboard-key': DASHBOARD_KEY },
@@ -872,9 +872,19 @@ async function loadAvailableChats() {
       if (channelSelect && data.channels) {
         channelSelect.innerHTML = '<option value="">-- Select a channel --</option>' + data.channels.map(c => `<option value="${c.id}">${c.name || c.id}</option>`).join('');
       }
+      
+      if (showToast) {
+        if (data.totalChats === 0) {
+          toast('WhatsApp is still syncing your chats! Please wait a minute and try again.', 'warning');
+        } else if (data.groups.length === 0 && data.channels.length === 0) {
+          toast(`Synced ${data.totalChats} chats, but found no groups or channels.`, 'warning');
+        } else {
+          toast(`Refreshed! Found ${data.groups.length} groups and ${data.channels.length} channels.`, 'success');
+        }
+      }
     }
   } catch (err) {
-    // Silently fail if endpoint isn't available yet or network error
+    if (showToast) toast('Failed to refresh lists', 'error');
   }
 }
 
@@ -882,8 +892,7 @@ $('refresh-chats-btn')?.addEventListener('click', async () => {
   const btn = $('refresh-chats-btn');
   btn.textContent = '🔄 Loading...';
   btn.disabled = true;
-  await loadAvailableChats();
-  toast('Chat lists refreshed!', 'success');
+  await loadAvailableChats(true);
   btn.textContent = '🔄 Refresh';
   btn.disabled = false;
 });

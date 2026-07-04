@@ -619,19 +619,20 @@ async function findChatByName(name) {
 }
 
 async function getAvailableChats() {
-  if (!client || !isReady) return { groups: [], channels: [] };
+  if (!client || !isReady) return { groups: [], channels: [], totalChats: 0 };
   try {
     const chats = await client.getChats();
     const groups = [];
     const channels = [];
     for (const chat of chats) {
-      if (chat.isGroup) {
-        groups.push({ id: chat.id._serialized, name: chat.name });
+      if (chat.isGroup || (chat.id && chat.id.server === 'g.us')) {
+        groups.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Group' });
       } else if (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter')) {
-        channels.push({ id: chat.id._serialized, name: chat.name });
+        channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
       }
     }
-    return { groups, channels };
+    logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups and ${channels.length} channels.`);
+    return { groups, channels, totalChats: chats.length };
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
     return { groups: [], channels: [] };
