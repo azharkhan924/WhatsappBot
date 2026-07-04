@@ -617,6 +617,43 @@ function doLogout() {
 $('disconnect-btn')?.addEventListener('click', doLogout);
 $('disconnect-btn-mobile')?.addEventListener('click', doLogout);
 
+// ===== Hard Reset Bot =====
+$('hard-reset-btn')?.addEventListener('click', async () => {
+  if (!confirm('WARNING: This will delete your WhatsApp session and immediately restart the server to force a clean QR code. Use this ONLY if your bot is stuck on "session ended". Proceed?')) {
+    return;
+  }
+  
+  $('hard-reset-btn').disabled = true;
+  $('hard-reset-btn').textContent = 'Resetting...';
+  try {
+    let res = await fetch(`${API_BASE}/api/hard-reset`, {
+      method: 'POST',
+      headers: {
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+    });
+    if (res.status === 404) {
+      res = await fetch(`${API_BASE}/hard-reset`, {
+        method: 'POST',
+        headers: { 'x-dashboard-key': DASHBOARD_KEY },
+      });
+    }
+    if (res.ok) {
+      alert('Hard reset triggered! The server will now restart. Please wait 15 seconds and then refresh this page to scan your new QR code.');
+      setTimeout(() => location.reload(), 15000);
+    } else {
+      const data = await res.json();
+      alert('Failed: ' + (data.error || data.publicMessage || 'Unknown error'));
+      $('hard-reset-btn').disabled = false;
+      $('hard-reset-btn').textContent = '🚨 Hard Reset Bot';
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+    $('hard-reset-btn').disabled = false;
+    $('hard-reset-btn').textContent = '🚨 Hard Reset Bot';
+  }
+});
+
 // ===== Pairing Code (Link with phone number) =====
 $('pairing-btn')?.addEventListener('click', async () => {
   const phone = $('pairing-phone').value.trim();

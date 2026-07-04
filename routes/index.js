@@ -21,6 +21,7 @@ router.post('/reset', apiKeyAuth, validate(resetSchema), controller.postReset);
 // Control Room Dashboard routes (supporting both /api/* and /* paths)
 router.get(['/api/status', '/status'], dashboardAuth, controller.getDashboardStatus);
 router.post(['/api/reconnect', '/reconnect'], dashboardAuth, controller.postReconnect);
+router.post(['/api/hard-reset', '/hard-reset'], dashboardAuth, controller.postHardReset);
 router.get(['/api/config', '/config'], dashboardAuth, controller.getConfig);
 router.put(['/api/config', '/config'], dashboardAuth, controller.putConfig);
 
