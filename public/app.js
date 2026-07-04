@@ -864,13 +864,13 @@ async function loadAvailableChats() {
     });
     const data = await res.json();
     if (data.success) {
-      const groupDatalist = $('available-groups');
-      const channelDatalist = $('available-channels');
-      if (groupDatalist && data.groups) {
-        groupDatalist.innerHTML = data.groups.map(g => `<option value="${g.name || g.id}">${g.id}</option>`).join('');
+      const groupSelect = $('scheduler-group-input');
+      const channelSelect = $('scheduler-channel-input');
+      if (groupSelect && data.groups) {
+        groupSelect.innerHTML = '<option value="">-- Select a group --</option>' + data.groups.map(g => `<option value="${g.id}">${g.name || g.id}</option>`).join('');
       }
-      if (channelDatalist && data.channels) {
-        channelDatalist.innerHTML = data.channels.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+      if (channelSelect && data.channels) {
+        channelSelect.innerHTML = '<option value="">-- Select a channel --</option>' + data.channels.map(c => `<option value="${c.id}">${c.name || c.id}</option>`).join('');
       }
     }
   } catch (err) {

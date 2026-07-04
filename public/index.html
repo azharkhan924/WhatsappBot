@@ -1119,8 +1119,9 @@
             <!-- Target Groups -->
             <div class="section-label">👥 Target Groups</div>
             <div class="input-row">
-              <input type="text" id="scheduler-group-input" list="available-groups" placeholder="Type group name or ID">
-              <datalist id="available-groups"></datalist>
+              <select id="scheduler-group-input">
+                <option value="">-- Select a group --</option>
+              </select>
               <button class="btn btn-primary btn-sm" id="scheduler-group-add-btn">Add</button>
             </div>
             <div class="chip-list" id="scheduler-group-chips"></div>
@@ -1129,8 +1130,9 @@
             <!-- Target Channels -->
             <div class="section-label">📢 Target Channels</div>
             <div class="input-row">
-              <input type="text" id="scheduler-channel-input" list="available-channels" placeholder="Type channel name or ID">
-              <datalist id="available-channels"></datalist>
+              <select id="scheduler-channel-input">
+                <option value="">-- Select a channel --</option>
+              </select>
               <button class="btn btn-primary btn-sm" id="scheduler-channel-add-btn">Add</button>
             </div>
             <div class="chip-list" id="scheduler-channel-chips"></div>
