@@ -8,3 +8,5 @@ npm-debug.log*
 .wwebjs_cache/
 *.apk
 mobile/WhatsApp-AI-Assistant*
+data/
+.wwebjs_auth/
