@@ -875,15 +875,7 @@ async function loadAvailableChats(showToast = false) {
           groupSelect.appendChild(opt);
         });
       }
-      if (channelSelect && data.channels) {
-        channelSelect.innerHTML = '<option value="">-- Select a channel --</option>';
-        data.channels.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c.id;
-          opt.textContent = c.name || c.id;
-          channelSelect.appendChild(opt);
-        });
-      }
+      // Channel select removed by user request (using text input instead)
       
       if (showToast) {
         if (data.totalChats === 0) {
@@ -961,15 +953,11 @@ $('extract-channel-btn')?.addEventListener('click', async () => {
     
     const data = await res.json();
     if (data.success && data.id) {
-      const channelSelect = $('scheduler-channel-input');
-      if (channelSelect) {
-        const opt = document.createElement('option');
-        opt.value = data.id;
-        opt.textContent = `Channel: ${data.id}`;
-        opt.selected = true;
-        channelSelect.appendChild(opt);
+      const channelInput = $('scheduler-channel-input');
+      if (channelInput) {
+        channelInput.value = data.id;
       }
-      toast('Channel ID extracted and selected! Click Add to save.', 'success');
+      toast('Channel ID extracted! Click Add to save.', 'success');
     } else {
       toast('Failed: ' + (data.error || data.publicMessage || 'Unknown error'), 'error');
     }
