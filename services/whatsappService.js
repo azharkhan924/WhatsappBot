@@ -631,8 +631,9 @@ async function getAvailableChats() {
         channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
       }
     }
+    const raw = chats.map(c => ({ name: c.name || 'Unnamed', id: c.id ? c.id._serialized : 'unknown' }));
     logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups and ${channels.length} channels.`);
-    return { groups, channels, totalChats: chats.length };
+    return { groups, channels, totalChats: chats.length, raw };
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
     return { groups: [], channels: [] };

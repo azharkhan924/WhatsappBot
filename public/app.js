@@ -900,6 +900,38 @@ async function loadAvailableChats(showToast = false) {
   }
 }
 
+$('export-chats-btn')?.addEventListener('click', async () => {
+  const btn = $('export-chats-btn');
+  btn.textContent = '📥 Exporting...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/scheduler/available-chats`, {
+      headers: { 'x-dashboard-key': DASHBOARD_KEY },
+    });
+    const data = await res.json();
+    if (data.success && data.raw) {
+      let content = 'Chat Name | Chat ID\n=========================================\n';
+      data.raw.forEach(c => {
+        content += `${c.name} | ${c.id}\n`;
+      });
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'whatsapp_chat_ids.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Exported successfully!', 'success');
+    } else {
+      toast('No raw chats found or sync pending.', 'warning');
+    }
+  } catch (err) {
+    toast('Failed to export chats', 'error');
+  }
+  btn.textContent = '📥 Export All IDs';
+  btn.disabled = false;
+});
+
 $('refresh-chats-btn')?.addEventListener('click', async () => {
   const btn = $('refresh-chats-btn');
   btn.textContent = '🔄 Loading...';
