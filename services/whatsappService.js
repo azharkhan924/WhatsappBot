@@ -649,22 +649,31 @@ async function getChannelIdFromLink(inviteLink) {
     }
     if (!inviteCode) throw new Error('Invalid invite link format');
     
-    let channelId = null;
-    if (typeof client.getChannelByInviteCode === 'function') {
-      const channel = await client.getChannelByInviteCode(inviteCode);
-      if (channel && channel.id) channelId = channel.id._serialized;
-    } else {
-      // Fallback for older whatsapp-web.js versions on Railway
-      channelId = await client.pupPage.evaluate(async (code) => {
+    // WhatsApp Web recently updated their internal API which breaks whatsapp-web.js's native wrappers.
+    // We execute a custom evaluate script to safely bypass the broken getRoleByIdentifier module.
+    let channelId = await client.pupPage.evaluate(async (code) => {
+      // 1. Try to directly call the internal query job (bypassing broken RoleUtils)
+      try {
+        const queryJob = window.require('WAWebNewsletterMetadataQueryJob');
+        if (queryJob && queryJob.queryNewsletterMetadataByInviteCode) {
+           // 'GUEST' is the default role for someone inspecting an invite link
+           const response = await queryJob.queryNewsletterMetadataByInviteCode(code, 'GUEST');
+           if (response && response.idJid) return response.idJid;
+        }
+      } catch (e) {}
+      
+      // 2. Try the built-in WWebJS wrapper as fallback
+      try {
         if (window.WWebJS && typeof window.WWebJS.getChannelMetadata === 'function') {
            const response = await window.WWebJS.getChannelMetadata(code);
-           return response ? response.idJid : null;
+           if (response && response.idJid) return response.idJid;
         }
-        return null;
-      }, inviteCode);
-    }
+      } catch (e) {}
+
+      return null;
+    }, inviteCode);
     
-    if (!channelId) throw new Error('Channel not found, bot does not have access, or whatsapp-web.js version is too old to support link extraction.');
+    if (!channelId) throw new Error('Channel not found, invalid link, or WhatsApp Web API has changed.');
     return channelId;
   } catch (err) {
     logger.error(`Error getting channel from link: ${err.message}`);
