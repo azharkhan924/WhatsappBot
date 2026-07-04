@@ -640,6 +640,24 @@ async function getAvailableChats() {
   }
 }
 
+async function getChannelIdFromLink(inviteLink) {
+  if (!client || !isReady) throw new Error('WhatsApp client is not ready. Please scan QR code first.');
+  try {
+    let inviteCode = inviteLink;
+    if (inviteLink.includes('/')) {
+      inviteCode = inviteLink.split('/').pop();
+    }
+    if (!inviteCode) throw new Error('Invalid invite link format');
+    
+    const channel = await client.getChannelByInviteCode(inviteCode);
+    if (!channel || !channel.id) throw new Error('Channel not found or bot does not have access.');
+    return channel.id._serialized;
+  } catch (err) {
+    logger.error(`Error getting channel from link: ${err.message}`);
+    throw err;
+  }
+}
+
 function getStatus() {
   return {
     ready: isReady,
@@ -681,6 +699,7 @@ module.exports = {
   getClient,
   findChatByName,
   getAvailableChats,
+  getChannelIdFromLink,
   getStatus,
   getStats,
   setSocketIO,

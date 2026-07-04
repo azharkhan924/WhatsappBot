@@ -144,6 +144,19 @@ async function getAvailableChats(req, res, next) {
   }
 }
 
+async function postExtractChannelId(req, res, next) {
+  try {
+    const { link } = req.body;
+    if (!link) return res.status(400).json({ error: 'Missing link' });
+    const id = await whatsappService.getChannelIdFromLink(link);
+    res.json({ success: true, id });
+  } catch (err) {
+    let publicMessage = 'Failed to extract channel ID. Make sure it is a valid link.';
+    if (err.message) publicMessage = err.message;
+    next(Object.assign(err, { statusCode: 400, publicMessage }));
+  }
+}
+
 async function getQuotes(req, res, next) {
   try {
     if (!fs.existsSync(QUOTES_FILE)) {
@@ -252,6 +265,7 @@ module.exports = {
   getSchedulerStatus,
   postTriggerScheduler,
   getAvailableChats,
+  postExtractChannelId,
   getQuotes,
   putQuotes,
   postRequestOtp,

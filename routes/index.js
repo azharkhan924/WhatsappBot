@@ -37,6 +37,7 @@ router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.po
 router.get(['/api/scheduler/status', '/scheduler/status'], dashboardAuth, controller.getSchedulerStatus);
 router.post(['/api/scheduler/trigger', '/scheduler/trigger'], dashboardAuth, controller.postTriggerScheduler);
 router.get(['/api/scheduler/available-chats', '/scheduler/available-chats'], dashboardAuth, controller.getAvailableChats);
+router.post(['/api/scheduler/channel-id', '/scheduler/channel-id'], dashboardAuth, controller.postExtractChannelId);
 router.get(['/api/scheduler/quotes', '/scheduler/quotes'], dashboardAuth, controller.getQuotes);
 router.put(['/api/scheduler/quotes', '/scheduler/quotes'], dashboardAuth, controller.putQuotes);
 

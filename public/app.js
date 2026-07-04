@@ -941,6 +941,46 @@ $('refresh-chats-btn')?.addEventListener('click', async () => {
   btn.disabled = false;
 });
 
+$('extract-channel-btn')?.addEventListener('click', async () => {
+  const link = prompt('Paste your WhatsApp Channel Invite Link:\n(e.g., https://whatsapp.com/channel/0029Va...)');
+  if (!link) return;
+  
+  const btn = $('extract-channel-btn');
+  btn.textContent = '⏳ Wait...';
+  btn.disabled = true;
+  
+  try {
+    const res = await fetch(`${API_BASE}/api/scheduler/channel-id`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+      body: JSON.stringify({ link: link.trim() }),
+    });
+    
+    const data = await res.json();
+    if (data.success && data.id) {
+      const channelSelect = $('scheduler-channel-input');
+      if (channelSelect) {
+        const opt = document.createElement('option');
+        opt.value = data.id;
+        opt.textContent = `Channel: ${data.id}`;
+        opt.selected = true;
+        channelSelect.appendChild(opt);
+      }
+      toast('Channel ID extracted and selected! Click Add to save.', 'success');
+    } else {
+      toast('Failed: ' + (data.error || data.publicMessage || 'Unknown error'), 'error');
+    }
+  } catch (err) {
+    toast('Error extracting channel ID. Check your link.', 'error');
+  }
+  
+  btn.textContent = '🔗 Get ID from Link';
+  btn.disabled = false;
+});
+
 // Quotes Editor
 async function loadQuotes() {
   try {
