@@ -9,11 +9,8 @@ const logger = require('../utils/logger');
 const config = require('../config');
 
 const QUOTES_FILE = path.join(config.dataDir, 'quotes.txt');
-const API_URL = 'https://zenquotes.io/api/today';
+const API_URL = 'https://zenquotes.io/api/random';
 const API_TIMEOUT_MS = 8000;
-
-let cachedQuote = null;
-let cachedDate = null;
 
 /**
  * Load quotes from the local .txt fallback file.
@@ -50,12 +47,6 @@ const { getState, saveState } = require('./schedulerState');
  * Prioritizes local quotes to ensure uniqueness, falls back to API.
  */
 async function getQuoteOfTheDay() {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-
-  // Return cached quote if it's still the same day
-  if (cachedQuote && cachedDate === today) {
-    return cachedQuote;
-  }
 
   // 1. Try local .txt file first (guarantees uniqueness)
   const localQuotes = loadLocalQuotes();
@@ -73,15 +64,14 @@ async function getQuoteOfTheDay() {
     // Pick first available sequentially or randomly?
     // Let's pick randomly to mix them up
     const idx = Math.floor(Math.random() * available.length);
-    cachedQuote = available[idx];
+    const selectedQuote = available[idx];
     
     // Track as sent
-    state.sentQuotes.push(cachedQuote.text);
+    state.sentQuotes.push(selectedQuote.text);
     saveState(state);
 
-    cachedDate = today;
-    logger.info(`Using unique local quote: "${cachedQuote.text}" — ${cachedQuote.author}`);
-    return cachedQuote;
+    logger.info(`Using unique local quote: "${selectedQuote.text}" — ${selectedQuote.author}`);
+    return selectedQuote;
   }
 
   // 2. Fallback to API if local file is empty
@@ -90,33 +80,33 @@ async function getQuoteOfTheDay() {
     const data = response.data;
 
     if (Array.isArray(data) && data.length > 0 && data[0].q) {
-      cachedQuote = {
+      const apiQuote = {
         text: data[0].q,
         author: data[0].a || 'Unknown',
       };
-      cachedDate = today;
-      logger.info(`Fetched daily quote from API: "${cachedQuote.text}" — ${cachedQuote.author}`);
-      return cachedQuote;
+      logger.info(`Fetched random quote from API: "${apiQuote.text}" — ${apiQuote.author}`);
+      return apiQuote;
     }
   } catch (err) {
     logger.warn(`ZenQuotes API failed: ${err.message}`);
   }
 
   // 3. Absolute fallback
-  cachedQuote = {
-    text: 'Every day is a new beginning. Take a deep breath, smile, and start again.',
-    author: 'Unknown',
-  };
-  cachedDate = today;
-  return cachedQuote;
+  const fallbacks = [
+    { text: 'Every day is a new beginning. Take a deep breath, smile, and start again.', author: 'Unknown' },
+    { text: 'The secret of getting ahead is getting started.', author: 'Mark Twain' },
+    { text: 'It always seems impossible until it\'s done.', author: 'Nelson Mandela' },
+    { text: 'Your limitation—it\'s only your imagination.', author: 'Unknown' },
+    { text: 'Push yourself, because no one else is going to do it for you.', author: 'Unknown' }
+  ];
+  return fallbacks[Math.floor(Math.random() * fallbacks.length)];
 }
 
 /**
- * Force-clear the cache so the next call fetches fresh.
+ * Force-clear the cache so the next call fetches fresh. (Deprecated/No-op)
  */
 function clearCache() {
-  cachedQuote = null;
-  cachedDate = null;
+  // No-op
 }
 
 module.exports = {
