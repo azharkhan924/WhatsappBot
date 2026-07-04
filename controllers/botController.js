@@ -126,7 +126,11 @@ async function postTriggerScheduler(req, res, next) {
     res.json({ success: true, ...result });
   } catch (err) {
     logger.error(`postTriggerScheduler failed: ${err.message}`);
-    next(Object.assign(err, { statusCode: 500, publicMessage: 'Failed to trigger scheduler' }));
+    let publicMessage = 'Failed to trigger scheduler';
+    if (err.message.includes('not connected') || err.message.includes('not ready')) {
+      publicMessage = 'WhatsApp client is disconnected. Please scan the QR code in the dashboard to log in first.';
+    }
+    next(Object.assign(err, { statusCode: 400, publicMessage }));
   }
 }
 
