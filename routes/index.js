@@ -36,6 +36,8 @@ router.post(['/api/pairing-code', '/pairing-code'], dashboardAuth, controller.po
 router.get(['/api/scheduler/status', '/scheduler/status'], dashboardAuth, controller.getSchedulerStatus);
 router.post(['/api/scheduler/trigger', '/scheduler/trigger'], dashboardAuth, controller.postTriggerScheduler);
 router.get(['/api/scheduler/available-chats', '/scheduler/available-chats'], dashboardAuth, controller.getAvailableChats);
+router.get(['/api/scheduler/quotes', '/scheduler/quotes'], dashboardAuth, controller.getQuotes);
+router.put(['/api/scheduler/quotes', '/scheduler/quotes'], dashboardAuth, controller.putQuotes);
 
 // Ad images upload route
 const multer = require('multer');
@@ -60,6 +62,17 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 router.post(['/api/scheduler/ads/upload', '/scheduler/ads/upload'], dashboardAuth, upload.array('images'), (req, res) => {
   res.json({ success: true, count: req.files ? req.files.length : 0 });
+});
+
+// Quotes file upload route
+const uploadQuotes = multer({ storage: multer.memoryStorage() });
+router.post(['/api/scheduler/quotes/upload', '/scheduler/quotes/upload'], dashboardAuth, uploadQuotes.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded' });
+  const content = req.file.buffer.toString('utf-8');
+  const QUOTES_FILE = path.join(__dirname, '..', 'data', 'quotes.txt');
+  fs.writeFileSync(QUOTES_FILE, content, 'utf-8');
+  require('../services/quoteService').clearCache();
+  res.json({ success: true, content });
 });
 
 module.exports = router;

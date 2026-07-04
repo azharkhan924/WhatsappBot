@@ -9,9 +9,12 @@ const authService = require('../services/authService');
 const conversationMemory = require('../memory/conversationMemory');
 const provider = require('../providers');
 const logger = require('../utils/logger');
+const fs = require('fs');
+const path = require('path');
 
 const VERSION = require('../package.json').version;
 const START_TIME = Date.now();
+const QUOTES_FILE = path.join(__dirname, '..', 'data', 'quotes.txt');
 
 async function getRoot(req, res) {
   res.json({
@@ -136,6 +139,35 @@ async function getAvailableChats(req, res, next) {
   }
 }
 
+async function getQuotes(req, res, next) {
+  try {
+    if (!fs.existsSync(QUOTES_FILE)) {
+      return res.json({ success: true, content: '' });
+    }
+    const content = fs.readFileSync(QUOTES_FILE, 'utf-8');
+    res.json({ success: true, content });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function putQuotes(req, res, next) {
+  try {
+    const { content } = req.body;
+    if (typeof content !== 'string') throw new Error('Invalid content');
+    const dir = path.dirname(QUOTES_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(QUOTES_FILE, content, 'utf-8');
+    
+    // Clear quote service cache so new quotes are immediately used
+    require('../services/quoteService').clearCache();
+    
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function postRequestOtp(req, res, next) {
   try {
     const { phone } = req.body || {};
@@ -190,6 +222,8 @@ module.exports = {
   getSchedulerStatus,
   postTriggerScheduler,
   getAvailableChats,
+  getQuotes,
+  putQuotes,
   postRequestOtp,
   postVerifyOtp,
   postPairingCode,

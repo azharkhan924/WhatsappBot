@@ -838,6 +838,23 @@
               style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--sans); font-size:13.5px; padding:10px 12px;">
           </div>
 
+          <!-- Quotes Editor -->
+          <div style="margin-top:16px;">
+            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em; font-family:var(--mono); display:flex; justify-content:space-between; align-items:center;">
+              <span>📝 Quotes List (Fallback)</span>
+              <div>
+                <button class="primary" id="scheduler-quotes-upload-btn" style="padding:4px 8px; font-size:11px;">Upload .txt</button>
+                <input type="file" id="scheduler-quotes-upload-input" accept=".txt" style="display:none;">
+              </div>
+            </div>
+            <textarea id="scheduler-quotes-editor" spellcheck="false" placeholder="Loading quotes..."
+              style="width:100%; height:120px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--mono); font-size:12px; padding:10px; resize:vertical;"></textarea>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px; font-family:var(--mono); display:flex; justify-content:space-between;">
+              <span>Format: quote text | author name</span>
+              <button class="primary" id="scheduler-quotes-save-btn" style="padding:4px 8px; font-size:11px;">Save Quotes</button>
+            </div>
+          </div>
+
           <!-- Save + Send Now -->
           <div style="display:flex; gap:10px; margin-top:18px; flex-wrap:wrap;">
             <button class="primary" id="scheduler-save-btn" style="flex:1;">💾 Save Scheduler Settings</button>

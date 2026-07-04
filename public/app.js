@@ -758,10 +758,70 @@ async function loadAvailableChats() {
   }
 }
 
+// Quotes Editor
+async function loadQuotes() {
+  try {
+    const res = await api('/api/scheduler/quotes');
+    if ($('scheduler-quotes-editor')) {
+      $('scheduler-quotes-editor').value = res.content || '';
+    }
+  } catch (err) {}
+}
+
+$('scheduler-quotes-save-btn')?.addEventListener('click', async () => {
+  const btn = $('scheduler-quotes-save-btn');
+  if (btn) btn.disabled = true;
+  const content = $('scheduler-quotes-editor')?.value || '';
+  try {
+    await api('/api/scheduler/quotes', {
+      method: 'PUT',
+      body: JSON.stringify({ content })
+    });
+    toast('Quotes saved successfully!', 'success');
+  } catch (err) {
+    toast('Failed to save quotes', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+$('scheduler-quotes-upload-btn')?.addEventListener('click', () => {
+  $('scheduler-quotes-upload-input')?.click();
+});
+
+$('scheduler-quotes-upload-input')?.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const btn = $('scheduler-quotes-upload-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/scheduler/quotes/upload`, {
+      method: 'POST',
+      headers: { 'x-dashboard-key': DASHBOARD_KEY },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error);
+    if ($('scheduler-quotes-editor')) {
+      $('scheduler-quotes-editor').value = data.content;
+    }
+    toast('Quotes uploaded successfully!', 'success');
+  } catch (err) {
+    toast(err.message || 'Failed to upload quotes file', 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    e.target.value = '';
+  }
+});
+
 // Load scheduler status from backend
 async function loadSchedulerStatus() {
   try {
     loadAvailableChats();
+    loadQuotes();
     const status = await api('/api/scheduler/status');
 
     // Toggle
