@@ -40,8 +40,10 @@ function listAdImages(dirPath) {
   }
 }
 
+const { getState, saveState } = require('./schedulerState');
+
 /**
- * Get a random ad image from the configured directory.
+ * Get a random ad image from the configured directory, ensuring uniqueness until all are sent.
  * Returns { filePath, mimeType, filename } or null if no images found.
  */
 function getRandomAdImage(dirPath) {
@@ -51,7 +53,22 @@ function getRandomAdImage(dirPath) {
     return null;
   }
 
-  const filePath = images[Math.floor(Math.random() * images.length)];
+  const state = getState();
+  let available = images.filter(img => !state.sentImages.includes(img));
+
+  // If all images have been sent, recycle them
+  if (available.length === 0) {
+    logger.info('All ad images have been sent. Recycling images list.');
+    state.sentImages = [];
+    available = images;
+  }
+
+  const filePath = available[Math.floor(Math.random() * available.length)];
+  
+  // Track as sent
+  state.sentImages.push(filePath);
+  saveState(state);
+
   const ext = path.extname(filePath).toLowerCase();
   const mimeMap = {
     '.jpg': 'image/jpeg',

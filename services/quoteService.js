@@ -42,9 +42,11 @@ function loadLocalQuotes() {
   }
 }
 
+const { getState, saveState } = require('./schedulerState');
+
 /**
- * Fetch the quote of the day from the ZenQuotes API.
- * Falls back to a random local quote on failure.
+ * Fetch the quote of the day.
+ * Prioritizes local quotes to ensure uniqueness, falls back to API.
  */
 async function getQuoteOfTheDay() {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
@@ -54,7 +56,34 @@ async function getQuoteOfTheDay() {
     return cachedQuote;
   }
 
-  // Try API first
+  // 1. Try local .txt file first (guarantees uniqueness)
+  const localQuotes = loadLocalQuotes();
+  if (localQuotes.length > 0) {
+    const state = getState();
+    let available = localQuotes.filter(q => !state.sentQuotes.includes(q.text));
+    
+    // If all quotes have been sent, recycle them
+    if (available.length === 0) {
+      logger.info('All local quotes have been sent. Recycling quotes list.');
+      state.sentQuotes = [];
+      available = localQuotes;
+    }
+    
+    // Pick first available sequentially or randomly?
+    // Let's pick randomly to mix them up
+    const idx = Math.floor(Math.random() * available.length);
+    cachedQuote = available[idx];
+    
+    // Track as sent
+    state.sentQuotes.push(cachedQuote.text);
+    saveState(state);
+
+    cachedDate = today;
+    logger.info(`Using unique local quote: "${cachedQuote.text}" — ${cachedQuote.author}`);
+    return cachedQuote;
+  }
+
+  // 2. Fallback to API if local file is empty
   try {
     const response = await axios.get(API_URL, { timeout: API_TIMEOUT_MS });
     const data = response.data;
@@ -69,22 +98,15 @@ async function getQuoteOfTheDay() {
       return cachedQuote;
     }
   } catch (err) {
-    logger.warn(`ZenQuotes API failed, falling back to local quotes: ${err.message}`);
+    logger.warn(`ZenQuotes API failed: ${err.message}`);
   }
 
-  // Fallback to local .txt file
-  const localQuotes = loadLocalQuotes();
-  if (localQuotes.length === 0) {
-    cachedQuote = {
-      text: 'Every day is a new beginning. Take a deep breath, smile, and start again.',
-      author: 'Unknown',
-    };
-  } else {
-    const idx = Math.floor(Math.random() * localQuotes.length);
-    cachedQuote = localQuotes[idx];
-  }
+  // 3. Absolute fallback
+  cachedQuote = {
+    text: 'Every day is a new beginning. Take a deep breath, smile, and start again.',
+    author: 'Unknown',
+  };
   cachedDate = today;
-  logger.info(`Using local fallback quote: "${cachedQuote.text}" — ${cachedQuote.author}`);
   return cachedQuote;
 }
 
