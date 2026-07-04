@@ -7,17 +7,17 @@ import { colors } from './src/theme/colors';
 
 import { GateScreen } from './src/screens/GateScreen';
 import { LiveStatusScreen } from './src/screens/LiveStatusScreen';
-import { ControlsScreen } from './src/screens/ControlsScreen';
 import { PromptEditorScreen } from './src/screens/PromptEditorScreen';
-import { LabScreen } from './src/screens/LabScreen';
+import { SchedulerScreen } from './src/screens/SchedulerScreen';
+import { ControlsScreen } from './src/screens/ControlsScreen';
 
-import { Activity, Sliders, Sparkles, FlaskConical } from 'lucide-react-native';
+import { Radio, Sparkles, Calendar, Settings } from 'lucide-react-native';
 
-type TabType = 'status' | 'controls' | 'prompt' | 'lab';
+type TabType = 'connection' | 'prompt' | 'scheduler' | 'settings';
 
 const MainNavigator: React.FC = () => {
   const { isConnected, isLoading } = useApp();
-  const [activeTab, setActiveTab] = useState<TabType>('status');
+  const [activeTab, setActiveTab] = useState<TabType>('connection');
 
   if (isLoading) {
     return (
@@ -38,30 +38,21 @@ const MainNavigator: React.FC = () => {
       
       {/* Screen Content */}
       <View style={styles.content}>
-        {activeTab === 'status' && <LiveStatusScreen />}
-        {activeTab === 'controls' && <ControlsScreen />}
+        {activeTab === 'connection' && <LiveStatusScreen />}
         {activeTab === 'prompt' && <PromptEditorScreen />}
-        {activeTab === 'lab' && <LabScreen />}
+        {activeTab === 'scheduler' && <SchedulerScreen />}
+        {activeTab === 'settings' && <ControlsScreen />}
       </View>
 
-      {/* Sleek Bottom Navigation */}
+      {/* Bottom Navigation — matches web dashboard sidebar */}
       <View style={styles.navBar}>
         <TouchableOpacity
-          style={[styles.navItem, activeTab === 'status' && styles.navItemActive]}
-          onPress={() => setActiveTab('status')}
+          style={[styles.navItem, activeTab === 'connection' && styles.navItemActive]}
+          onPress={() => setActiveTab('connection')}
           activeOpacity={0.7}
         >
-          <Activity size={22} color={activeTab === 'status' ? colors.primary : colors.textMuted} />
-          <Text style={[styles.navText, activeTab === 'status' && styles.navTextActive]}>Gateway</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.navItem, activeTab === 'controls' && styles.navItemActive]}
-          onPress={() => setActiveTab('controls')}
-          activeOpacity={0.7}
-        >
-          <Sliders size={22} color={activeTab === 'controls' ? colors.primary : colors.textMuted} />
-          <Text style={[styles.navText, activeTab === 'controls' && styles.navTextActive]}>Controls</Text>
+          <Radio size={20} color={activeTab === 'connection' ? colors.primary : colors.textMuted} />
+          <Text style={[styles.navText, activeTab === 'connection' && styles.navTextActive]}>Connection</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -69,17 +60,26 @@ const MainNavigator: React.FC = () => {
           onPress={() => setActiveTab('prompt')}
           activeOpacity={0.7}
         >
-          <Sparkles size={22} color={activeTab === 'prompt' ? colors.primary : colors.textMuted} />
-          <Text style={[styles.navText, activeTab === 'prompt' && styles.navTextActive]}>Persona</Text>
+          <Sparkles size={20} color={activeTab === 'prompt' ? colors.primary : colors.textMuted} />
+          <Text style={[styles.navText, activeTab === 'prompt' && styles.navTextActive]}>AI Prompt</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.navItem, activeTab === 'lab' && styles.navItemActive]}
-          onPress={() => setActiveTab('lab')}
+          style={[styles.navItem, activeTab === 'scheduler' && styles.navItemActive]}
+          onPress={() => setActiveTab('scheduler')}
           activeOpacity={0.7}
         >
-          <FlaskConical size={22} color={activeTab === 'lab' ? colors.accent : colors.textMuted} />
-          <Text style={[styles.navText, activeTab === 'lab' && { color: colors.accent, fontWeight: '700' }]}>Lab</Text>
+          <Calendar size={20} color={activeTab === 'scheduler' ? colors.primary : colors.textMuted} />
+          <Text style={[styles.navText, activeTab === 'scheduler' && styles.navTextActive]}>Scheduler</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.navItem, activeTab === 'settings' && styles.navItemActive]}
+          onPress={() => setActiveTab('settings')}
+          activeOpacity={0.7}
+        >
+          <Settings size={20} color={activeTab === 'settings' ? colors.primary : colors.textMuted} />
+          <Text style={[styles.navText, activeTab === 'settings' && styles.navTextActive]}>Settings</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -121,24 +121,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     justifyContent: 'space-around',
   },
   navItem: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: 14,
+    paddingHorizontal: 12,
+    borderRadius: 10,
   },
   navItemActive: {
     backgroundColor: colors.inputBg,
   },
   navText: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: 3,
     fontWeight: '600',
   },
   navTextActive: {

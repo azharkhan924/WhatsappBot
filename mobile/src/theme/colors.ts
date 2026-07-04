@@ -1,19 +1,21 @@
 export const colors = {
-  background: '#0a0f1d',
-  card: '#131b2f',
-  cardBorder: '#1e2942',
-  cardElevated: '#1a243e',
-  primary: '#10b981', // Vibrant emerald
-  primaryGlow: 'rgba(16, 185, 129, 0.25)',
-  accent: '#06b6d4', // Cyan accent
-  danger: '#ef4444',
-  dangerGlow: 'rgba(239, 68, 68, 0.25)',
-  warning: '#f59e0b',
-  text: '#f8fafc',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  inputBg: '#0e1626',
-  inputBorder: '#23314f',
-  chipBg: '#1e2c4a',
-  success: '#10b981',
+  // WhatsApp Dark Theme — matches web dashboard exactly
+  background: '#111B21',
+  card: '#1F2C34',
+  cardBorder: '#2A3942',
+  cardElevated: '#202C33',
+  primary: '#00A884',       // WhatsApp green
+  primaryGlow: 'rgba(0, 168, 132, 0.2)',
+  accent: '#00A884',        // Same green for consistency
+  danger: '#EA4335',
+  dangerGlow: 'rgba(234, 67, 53, 0.2)',
+  warning: '#F4B400',
+  text: '#E9EDEF',
+  textSecondary: '#8696A0',
+  textMuted: '#667781',
+  inputBg: '#2A3942',
+  inputBorder: '#344049',
+  chipBg: '#2A3942',
+  success: '#00A884',
+  qrBg: '#FFFFFF',
 };

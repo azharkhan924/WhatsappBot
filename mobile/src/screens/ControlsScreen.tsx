@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Switch, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { colors } from '../theme/colors';
 import { useApp } from '../context/AppContext';
-import { Zap, ShieldCheck, Plus, X, MessageSquare, Save } from 'lucide-react-native';
+import { Zap, ShieldCheck, Plus, X, MessageSquare, Save, Clock } from 'lucide-react-native';
 import { CountryCodePicker } from '../components/CountryCodePicker';
 
 export const ControlsScreen: React.FC = () => {
@@ -10,14 +10,18 @@ export const ControlsScreen: React.FC = () => {
   const [newNumber, setNewNumber] = useState('');
   const [countryCode, setCountryCode] = useState('91');
   const [holdingReply, setHoldingReply] = useState(config?.holdingReply || '');
+  const [autoPauseHours, setAutoPauseHours] = useState(String(config?.autoPauseHours || 12));
   const [savingHolding, setSavingHolding] = useState(false);
 
-  // Sync holdingReply when config loads/changes
+  // Sync when config loads/changes
   React.useEffect(() => {
     if (config?.holdingReply !== undefined) {
       setHoldingReply(config.holdingReply);
     }
-  }, [config?.holdingReply]);
+    if (config?.autoPauseHours !== undefined) {
+      setAutoPauseHours(String(config.autoPauseHours));
+    }
+  }, [config?.holdingReply, config?.autoPauseHours]);
 
   const handleToggleBot = async (val: boolean) => {
     try {
@@ -83,6 +87,20 @@ export const ControlsScreen: React.FC = () => {
     }
   };
 
+  const handleSaveAutoPause = async () => {
+    const hours = parseInt(autoPauseHours, 10);
+    if (isNaN(hours) || hours < 1) {
+      Alert.alert('Error', 'Please enter a valid number of hours.');
+      return;
+    }
+    try {
+      await updateConfig({ autoPauseHours: hours });
+      Alert.alert('Saved', `Auto-pause set to ${hours} hours.`);
+    } catch (err) {
+      Alert.alert('Error', 'Could not update auto-pause hours.');
+    }
+  };
+
   if (!config) {
     return (
       <View style={styles.loadingBox}>
@@ -93,13 +111,15 @@ export const ControlsScreen: React.FC = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Master Switch Card */}
+      {/* Bot Controls Card */}
       <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Zap size={22} color={config.botEnabled ? colors.primary : colors.textMuted} />
-          <View style={styles.cardTitles}>
-            <Text style={styles.cardTitle}>Bot Master Switch</Text>
-            <Text style={styles.cardSub}>Instantly enable or silence automated AI responses.</Text>
+        <Text style={styles.cardTitle}>Bot Controls</Text>
+
+        {/* Bot Enabled Toggle */}
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Bot Enabled</Text>
+            <Text style={styles.toggleSub}>When off, the bot will not reply to any messages</Text>
           </View>
           <Switch
             value={!!config.botEnabled}
@@ -108,99 +128,105 @@ export const ControlsScreen: React.FC = () => {
             thumbColor={config.botEnabled ? colors.primary : colors.textMuted}
           />
         </View>
-      </View>
 
-      {/* Whitelist Protection Card */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <ShieldCheck size={22} color={config.whitelistEnabled ? colors.accent : colors.textMuted} />
-          <View style={styles.cardTitles}>
-            <Text style={styles.cardTitle}>Whitelist Protection</Text>
-            <Text style={styles.cardSub}>Only reply to specific phone numbers listed below.</Text>
+        {/* Whitelist Toggle */}
+        <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Whitelist Mode</Text>
+            <Text style={styles.toggleSub}>Only reply to numbers in the whitelist below</Text>
           </View>
           <Switch
             value={!!config.whitelistEnabled}
             onValueChange={handleToggleWhitelist}
-            trackColor={{ false: colors.inputBg, true: 'rgba(6, 182, 212, 0.25)' }}
-            thumbColor={config.whitelistEnabled ? colors.accent : colors.textMuted}
+            trackColor={{ false: colors.inputBg, true: colors.primaryGlow }}
+            thumbColor={config.whitelistEnabled ? colors.primary : colors.textMuted}
           />
         </View>
 
-        {config.whitelistEnabled ? (
-          <View style={styles.whitelistSection}>
-            <View style={styles.addNumberRow}>
-              <View style={styles.inputWrapper}>
-                <CountryCodePicker value={countryCode} onChange={setCountryCode} />
-                <TextInput
-                  style={styles.numberInputWithPicker}
-                  placeholder="e.g. 9876543210"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="phone-pad"
-                  value={newNumber}
-                  onChangeText={setNewNumber}
-                />
-              </View>
-              <TouchableOpacity style={styles.addBtn} onPress={handleAddNumber}>
-                <Plus size={20} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.chipsContainer}>
-              {(config.whitelist || []).length === 0 ? (
-                <Text style={styles.emptyText}>No whitelisted numbers yet. Bot will stay silent.</Text>
-              ) : (
-                (config.whitelist || []).map((num) => (
-                  <View key={num} style={styles.chip}>
-                    <Text style={styles.chipText}>+{num}</Text>
-                    <TouchableOpacity onPress={() => handleRemoveNumber(num)} hitSlop={10}>
-                      <X size={16} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </View>
+        {/* Auto-Pause Hours */}
+        <View style={styles.autoPauseSection}>
+          <Text style={styles.autoPauseLabel}>Auto-Pause AI (Hours)</Text>
+          <View style={styles.autoPauseRow}>
+            <TextInput
+              style={styles.autoPauseInput}
+              value={autoPauseHours}
+              onChangeText={setAutoPauseHours}
+              keyboardType="number-pad"
+              placeholder="12"
+              placeholderTextColor={colors.textMuted}
+            />
+            <TouchableOpacity style={styles.autoPauseSaveBtn} onPress={handleSaveAutoPause}>
+              <Text style={styles.autoPauseSaveBtnText}>Save</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
+        </View>
+      </View>
+
+      {/* Whitelisted Numbers Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Whitelisted Numbers</Text>
+        <View style={styles.addRow}>
+          <View style={styles.phoneInputContainer}>
+            <CountryCodePicker value={countryCode} onChange={setCountryCode} />
+            <TextInput
+              style={styles.phoneInput}
+              placeholder="9876543210"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+              value={newNumber}
+              onChangeText={setNewNumber}
+            />
+          </View>
+          <TouchableOpacity style={styles.addBtn} onPress={handleAddNumber}>
+            <Plus size={20} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.chipList}>
+          {(config.whitelist || []).length === 0 ? (
+            <Text style={styles.emptyText}>No numbers added yet</Text>
+          ) : (
+            (config.whitelist || []).map((num) => (
+              <View key={num} style={styles.chip}>
+                <Text style={styles.chipText}>+{num}</Text>
+                <TouchableOpacity onPress={() => handleRemoveNumber(num)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <X size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
       </View>
 
       {/* Holding Reply Card */}
       <View style={styles.card}>
-        <View style={styles.cardHeaderNoSwitch}>
-          <MessageSquare size={22} color={colors.warning} />
-          <View style={styles.cardTitles}>
-            <Text style={styles.cardTitle}>Sensitive Holding Reply</Text>
-            <Text style={styles.cardSub}>Triggered when a query involves financial advice or meetings.</Text>
-          </View>
-        </View>
-
+        <Text style={styles.cardTitle}>Holding Reply</Text>
+        <Text style={styles.cardSub}>
+          Auto-reply when someone asks about meetings, money, or anything requiring personal confirmation.
+        </Text>
         <TextInput
-          style={styles.textArea}
-          multiline
-          numberOfLines={3}
-          placeholder="Enter holding reply..."
+          style={styles.holdingInput}
+          placeholder="e.g. I'll get back to you on this personally"
           placeholderTextColor={colors.textMuted}
           value={holdingReply}
           onChangeText={setHoldingReply}
         />
-
         <TouchableOpacity
           style={styles.saveBtn}
           onPress={handleSaveHoldingReply}
           disabled={savingHolding}
+          activeOpacity={0.8}
         >
           {savingHolding ? (
-            <ActivityIndicator color="#ffffff" size="small" />
+            <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <>
-              <Save size={18} color="#ffffff" />
-              <Text style={styles.saveBtnText}>Save Holding Reply</Text>
-            </>
+            <Text style={styles.saveBtnText}>Save</Text>
           )}
         </TouchableOpacity>
       </View>
 
-      <View style={{ marginTop: 16, alignItems: 'center', paddingBottom: 16 }}>
-        <Text style={{ fontSize: 12, color: colors.textMuted, textAlign: 'center' }}>
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
           ⚡ Designed & Developed by <Text style={{ color: colors.primary, fontWeight: '700' }}>Azhar Khan</Text>
         </Text>
       </View>
@@ -214,7 +240,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
-    padding: 20,
+    padding: 16,
     paddingBottom: 40,
   },
   loadingBox: {
@@ -225,85 +251,129 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  cardHeaderNoSwitch: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cardTitles: {
-    flex: 1,
-    marginHorizontal: 12,
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 12,
   },
   cardSub: {
     fontSize: 12,
     color: colors.textSecondary,
     lineHeight: 16,
+    marginBottom: 12,
   },
-  whitelistSection: {
-    marginTop: 20,
-    paddingTop: 16,
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  toggleInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  toggleSub: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  autoPauseSection: {
+    marginTop: 16,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: colors.cardBorder,
   },
-  addNumberRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
+  autoPauseLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
   },
-  inputWrapper: {
+  autoPauseRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  autoPauseInput: {
+    flex: 1,
+    height: 48,
+    backgroundColor: colors.inputBg,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    color: colors.text,
+    fontSize: 16,
+  },
+  autoPauseSaveBtn: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: 48,
+  },
+  autoPauseSaveBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  addRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  phoneInputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: 12,
+    borderRadius: 10,
     height: 48,
     overflow: 'hidden',
   },
-  numberInputWithPicker: {
+  phoneInput: {
     flex: 1,
     height: '100%',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     color: colors.text,
     fontSize: 16,
   },
   addBtn: {
     width: 48,
     height: 48,
-    backgroundColor: colors.accent,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 10,
   },
-  chipsContainer: {
+  chipList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.chipBg,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
@@ -311,39 +381,46 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 13,
     fontWeight: '600',
-    marginRight: 8,
+    marginRight: 6,
   },
   emptyText: {
     color: colors.textMuted,
     fontSize: 13,
     fontStyle: 'italic',
   },
-  textArea: {
+  holdingInput: {
+    height: 48,
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 10,
+    paddingHorizontal: 14,
     color: colors.text,
     fontSize: 14,
-    minHeight: 80,
-    textAlignVertical: 'top',
+    marginBottom: 12,
   },
   saveBtn: {
-    backgroundColor: colors.cardElevated,
-    flexDirection: 'row',
+    backgroundColor: colors.primary,
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 44,
-    borderRadius: 12,
-    marginTop: 14,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
+    alignSelf: 'flex-end',
+    paddingHorizontal: 24,
   },
   saveBtnText: {
-    color: colors.text,
+    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-    marginLeft: 8,
+  },
+  footer: {
+    marginTop: 8,
+    alignItems: 'center',
+    paddingBottom: 16,
+  },
+  footerText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });

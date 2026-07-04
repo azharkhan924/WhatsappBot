@@ -46,14 +46,17 @@ export const PromptEditorScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.container}
     >
-      <View style={styles.header}>
-        <Sparkles size={24} color={colors.primary} />
-        <View style={styles.headerTitles}>
-          <Text style={styles.title}>AI Persona & Instructions</Text>
-          <Text style={styles.subtitle}>Define the system prompt governing bot tone, rules, and memory.</Text>
+      {/* Header */}
+      <View style={styles.card}>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.cardTitle}>AI System Prompt</Text>
         </View>
+        <Text style={styles.cardSub}>
+          Define the bot's personality, rules, and behavior. This is sent as the system instruction to the AI engine.
+        </Text>
       </View>
 
+      {/* Editor */}
       <View style={styles.editorCard}>
         <TextInput
           style={styles.textArea}
@@ -71,6 +74,7 @@ export const PromptEditorScreen: React.FC = () => {
         </View>
       </View>
 
+      {/* Save Button */}
       <TouchableOpacity
         style={[styles.saveButton, (!isDirty && !justSaved) && styles.saveButtonDisabled]}
         onPress={handleSave}
@@ -82,12 +86,12 @@ export const PromptEditorScreen: React.FC = () => {
         ) : justSaved ? (
           <>
             <CheckCircle size={20} color="#ffffff" />
-            <Text style={styles.saveText}>Prompt Live on Engine</Text>
+            <Text style={styles.saveText}>Prompt Saved ✓</Text>
           </>
         ) : (
           <>
             <Save size={20} color="#ffffff" />
-            <Text style={styles.saveText}>Deploy Prompt Changes</Text>
+            <Text style={styles.saveText}>Save Prompt</Text>
           </>
         )}
       </TouchableOpacity>
@@ -99,24 +103,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
-    padding: 20,
+    padding: 16,
   },
-  header: {
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  cardTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 6,
   },
-  headerTitles: {
-    marginLeft: 14,
-    flex: 1,
-  },
-  title: {
-    fontSize: 18,
+  cardTitle: {
+    fontSize: 16,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 4,
   },
-  subtitle: {
+  cardSub: {
     fontSize: 13,
     color: colors.textSecondary,
     lineHeight: 18,
@@ -124,11 +131,11 @@ const styles = StyleSheet.create({
   editorCard: {
     flex: 1,
     backgroundColor: colors.card,
-    borderRadius: 20,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.cardBorder,
-    padding: 16,
-    marginBottom: 20,
+    padding: 14,
+    marginBottom: 16,
   },
   textArea: {
     flex: 1,
@@ -158,21 +165,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
-    borderRadius: 14,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    height: 48,
+    borderRadius: 10,
   },
   saveButtonDisabled: {
     opacity: 0.5,
   },
   saveText: {
     color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '600',
     marginLeft: 8,
   },
 });

@@ -45,7 +45,7 @@ export const CountryCodePicker: React.FC<Props> = ({ value, onChange }) => {
         activeOpacity={0.7}
       >
         <Text style={styles.pickerText}>+{value}</Text>
-        <ChevronDown size={16} color={colors.textSecondary} />
+        <ChevronDown size={14} color={colors.textSecondary} />
       </TouchableOpacity>
 
       <Modal
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -115,13 +115,13 @@ const styles = StyleSheet.create({
     width: '80%',
     maxHeight: '60%',
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 20,
     borderWidth: 1,
     borderColor: colors.cardBorder,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '700',
     color: colors.text,
     marginBottom: 16,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.cardBorder,
   },
   countryItemSelected: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    backgroundColor: 'rgba(0, 168, 132, 0.12)',
     borderRadius: 8,
     borderBottomWidth: 0,
     marginVertical: 2,

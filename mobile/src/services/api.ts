@@ -16,6 +16,34 @@ export interface BotConfig {
   whitelistEnabled?: boolean;
   whitelist?: string[];
   holdingReply?: string;
+  autoPauseHours?: number;
+}
+
+export interface SchedulerConfig {
+  enabled?: boolean;
+  cron?: string;
+  mode?: 'daily' | 'interval';
+  intervalPreset?: string;
+  time?: string;
+  timezone?: string;
+  targetGroups?: string[];
+  targetChannels?: string[];
+  adDir?: string;
+  adCaption?: string;
+  quotes?: string;
+  adCount?: number;
+  lastRun?: {
+    time?: string;
+    status?: string;
+    groups?: number;
+    channels?: number;
+  };
+}
+
+export interface ChatInfo {
+  id: string;
+  name: string;
+  isGroup: boolean;
 }
 
 class ApiService {
@@ -207,6 +235,63 @@ class ApiService {
         method: 'PUT',
         body: JSON.stringify(partialConfig),
       });
+    }
+  }
+
+  // ── Scheduler APIs ──
+  async getSchedulerConfig(): Promise<SchedulerConfig> {
+    try {
+      return await this.fetchApi('/api/config');
+    } catch (err: any) {
+      return await this.fetchApi('/config');
+    }
+  }
+
+  async updateSchedulerConfig(partial: Partial<SchedulerConfig>): Promise<any> {
+    try {
+      return await this.fetchApi('/api/config', {
+        method: 'PUT',
+        body: JSON.stringify(partial),
+      });
+    } catch (err: any) {
+      return await this.fetchApi('/config', {
+        method: 'PUT',
+        body: JSON.stringify(partial),
+      });
+    }
+  }
+
+  async sendSchedulerNow(): Promise<any> {
+    try {
+      return await this.fetchApi('/api/scheduler/send-now', { method: 'POST' });
+    } catch (err: any) {
+      return await this.fetchApi('/scheduler/send-now', { method: 'POST' });
+    }
+  }
+
+  async getAvailableChats(): Promise<ChatInfo[]> {
+    try {
+      const data = await this.fetchApi('/api/scheduler/available-chats');
+      return data.chats || [];
+    } catch (err: any) {
+      const data = await this.fetchApi('/scheduler/available-chats');
+      return data.chats || [];
+    }
+  }
+
+  async resolveChannelId(link: string): Promise<string> {
+    try {
+      const data = await this.fetchApi('/api/scheduler/channel-id', {
+        method: 'POST',
+        body: JSON.stringify({ link }),
+      });
+      return data.channelId || link;
+    } catch (err: any) {
+      const data = await this.fetchApi('/scheduler/channel-id', {
+        method: 'POST',
+        body: JSON.stringify({ link }),
+      });
+      return data.channelId || link;
     }
   }
 
