@@ -498,29 +498,17 @@ async function handleIncomingMessage(message) {
   if (botCfg.blacklistEnabled) {
     const blacklist = Array.isArray(botCfg.blacklist) ? botCfg.blacklist : [];
     if (blacklist.length > 0) {
-      const senderDigits = contactDigits;
-      const senderLast10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : senderDigits;
-
       const isBlacklisted = blacklist.some((num) => {
         const cleanNum = String(num).replace(/[^0-9]/g, '');
         if (!cleanNum) return false;
 
-        // 1. Exact match
-        if (senderDigits === cleanNum) return true;
-
-        // 2. Last-10-digits match
-        const numLast10 = cleanNum.slice(-10);
-        if (senderDigits.length >= 10 && cleanNum.length >= 10 && senderLast10 === numLast10) return true;
-
-        // 3. Suffix match for safety: only if the match is sufficiently long (min 8 digits) to avoid false positives
-        if (cleanNum.length >= 8 && senderDigits.endsWith(cleanNum)) return true;
-        if (senderDigits.length >= 8 && cleanNum.endsWith(senderDigits)) return true;
-
-        return false;
+        // Take exact mobile number from input and convert into that id before comparison
+        const targetId = `${cleanNum}@c.us`;
+        return senderId === targetId;
       });
 
       if (isBlacklisted) {
-        logger.info(`Sender ${senderId} (digits: ${senderDigits}) is on the blacklist. Skipping reply.`);
+        logger.info(`Sender ${senderId} is on the blacklist. Skipping reply.`);
         logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: blacklisted)`, 'warning');
         return;
       }
@@ -536,34 +524,21 @@ async function handleIncomingMessage(message) {
       return;
     }
 
-    // Normalize the sender's digits: strip @c.us suffix, keep only digits from the actual message sender (senderId)
-    const senderDigits = contactDigits;
-    const senderLast10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : senderDigits;
-
     const isWhitelisted = whitelist.some((num) => {
       const cleanNum = String(num).replace(/[^0-9]/g, '');
       if (!cleanNum) return false;
 
-      // 1. Exact match
-      if (senderDigits === cleanNum) return true;
-
-      // 2. Last-10-digits match (most common case for country-code variance)
-      const numLast10 = cleanNum.slice(-10);
-      if (senderDigits.length >= 10 && cleanNum.length >= 10 && senderLast10 === numLast10) return true;
-
-      // 3. Suffix match for safety: only if the match is sufficiently long (min 8 digits) to avoid false positives
-      if (cleanNum.length >= 8 && senderDigits.endsWith(cleanNum)) return true;
-      if (senderDigits.length >= 8 && cleanNum.endsWith(senderDigits)) return true;
-
-      return false;
+      // Take exact mobile number from input and convert into that id before comparison
+      const targetId = `${cleanNum}@c.us`;
+      return senderId === targetId;
     });
 
     if (!isWhitelisted) {
-      logger.info(`Sender ${senderId} (digits: ${senderDigits}, last10: ${senderLast10}) is not on the whitelist. Whitelist: [${whitelist.join(', ')}]`);
+      logger.info(`Sender ${senderId} is not on the whitelist. Whitelist: [${whitelist.join(', ')}]`);
       logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: not whitelisted)`, 'warning');
       return;
     }
-    logger.info(`Sender ${senderId} (digits: ${senderDigits}) matched whitelist.`);
+    logger.info(`Sender ${senderId} matched whitelist.`);
   }
 
   logger.info(`Incoming message from ${userId}: ${text}`);
