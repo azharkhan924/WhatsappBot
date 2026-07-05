@@ -442,6 +442,31 @@ function getStringSimilarity(s1, s2) {
   return intersection / union;
 }
 
+function isJidMatchList(jid, list) {
+  if (!jid || !Array.isArray(list) || list.length === 0) return false;
+
+  const cleanJid = String(jid).replace(/[^0-9]/g, '');
+  if (!cleanJid) return false;
+
+  return list.some((num) => {
+    const cleanNum = String(num).replace(/[^0-9]/g, '');
+    if (!cleanNum) return false;
+
+    if (cleanJid === cleanNum) return true;
+
+    // Suffix match both ways (handles different lengths due to country codes, area codes, etc.)
+    if (cleanNum.length >= 7 && cleanJid.endsWith(cleanNum)) return true;
+    if (cleanJid.length >= 7 && cleanNum.endsWith(cleanJid)) return true;
+
+    const cleanNumNoZero = cleanNum.replace(/^0+/, '');
+    const cleanJidNoZero = cleanJid.replace(/^0+/, '');
+    if (cleanNumNoZero.length >= 7 && cleanJidNoZero.endsWith(cleanNumNoZero)) return true;
+    if (cleanJidNoZero.length >= 7 && cleanNumNoZero.endsWith(cleanJidNoZero)) return true;
+
+    return false;
+  });
+}
+
 async function handleIncomingMessage(message) {
   stats.messagesReceived += 1;
 
@@ -469,15 +494,36 @@ async function handleIncomingMessage(message) {
 
   if (!text) return; // ignore non-text (media-only) messages for now
 
-  // Extract phone number digits synchronously from message sender without slow Puppeteer getContact() call
+  // Resolve actual phone number from contact info to handle internal unique IDs (LIDs)
+  let senderNumber = '';
+  let contactName = '';
+  try {
+    const contact = await message.getContact();
+    if (contact) {
+      if (contact.number) {
+        senderNumber = contact.number;
+      }
+      if (contact.pushname || contact.name) {
+        contactName = contact.pushname || contact.name;
+      }
+    }
+  } catch (err) {
+    logger.warn(`Failed to resolve contact info: ${err.message}`);
+  }
+
+  // Fallback to extracting digits from JID if getContact fails
   const senderId = message.author || message.from;
-  const contactDigits = senderId.replace(/[^0-9]/g, '');
+  if (!senderNumber) {
+    senderNumber = senderId.replace(/[^0-9]/g, '');
+  }
+
+  const logIdentifier = contactName ? `${contactName} (+${senderNumber})` : `+${senderNumber}`;
 
   // Check dashboard bot config (botEnabled & whitelistEnabled)
   const botCfg = botConfigService.getConfig();
   if (!botCfg.botEnabled) {
     logger.info(`Bot is disabled in control room. Skipping reply to ${userId}`);
-    logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: bot disabled)`, 'warning');
+    logToDashboard(`Incoming message from ${logIdentifier}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: bot disabled)`, 'warning');
     return;
   }
 
@@ -498,18 +544,12 @@ async function handleIncomingMessage(message) {
   if (botCfg.blacklistEnabled) {
     const blacklist = Array.isArray(botCfg.blacklist) ? botCfg.blacklist : [];
     if (blacklist.length > 0) {
-      const isBlacklisted = blacklist.some((num) => {
-        const cleanNum = String(num).replace(/[^0-9]/g, '');
-        if (!cleanNum) return false;
+      const isSenderBlacklisted = isJidMatchList(senderNumber, blacklist);
+      const isChatBlacklisted = isJidMatchList(message.from, blacklist);
 
-        // Take exact mobile number from input and convert into that id before comparison
-        const targetId = `${cleanNum}@c.us`;
-        return senderId === targetId;
-      });
-
-      if (isBlacklisted) {
-        logger.info(`Sender ${senderId} is on the blacklist. Skipping reply.`);
-        logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: blacklisted)`, 'warning');
+      if (isSenderBlacklisted || isChatBlacklisted) {
+        logger.info(`Sender ${senderNumber} or Chat ${message.from} is on the blacklist. Skipping reply.`);
+        logToDashboard(`Incoming message from ${logIdentifier}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: blacklisted)`, 'warning');
         return;
       }
     }
@@ -520,29 +560,23 @@ async function handleIncomingMessage(message) {
     const whitelist = Array.isArray(botCfg.whitelist) ? botCfg.whitelist : [];
     if (whitelist.length === 0) {
       logger.info(`Whitelist mode active but whitelist is empty. Skipping bot reply to ${userId}`);
-      logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: whitelist is empty)`, 'warning');
+      logToDashboard(`Incoming message from ${logIdentifier}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: whitelist is empty)`, 'warning');
       return;
     }
 
-    const isWhitelisted = whitelist.some((num) => {
-      const cleanNum = String(num).replace(/[^0-9]/g, '');
-      if (!cleanNum) return false;
+    const isSenderWhitelisted = isJidMatchList(senderNumber, whitelist);
+    const isChatWhitelisted = isJidMatchList(message.from, whitelist);
 
-      // Take exact mobile number from input and convert into that id before comparison
-      const targetId = `${cleanNum}@c.us`;
-      return senderId === targetId;
-    });
-
-    if (!isWhitelisted) {
-      logger.info(`Sender ${senderId} is not on the whitelist. Whitelist: [${whitelist.join(', ')}]`);
-      logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: not whitelisted)`, 'warning');
+    if (!isSenderWhitelisted && !isChatWhitelisted) {
+      logger.info(`Neither Sender ${senderNumber} nor Chat ${message.from} is on the whitelist. Whitelist: [${whitelist.join(', ')}]`);
+      logToDashboard(`Incoming message from ${logIdentifier}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: not whitelisted)`, 'warning');
       return;
     }
-    logger.info(`Sender ${senderId} matched whitelist.`);
+    logger.info(`Sender/Chat matched whitelist.`);
   }
 
-  logger.info(`Incoming message from ${userId}: ${text}`);
-  logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 'info');
+  logger.info(`Incoming message from ${userId} (${logIdentifier}): ${text}`);
+  logToDashboard(`Incoming message from ${logIdentifier}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}"`, 'info');
 
   // Handle #human command to request personal contact and pause AI
   if (text.toLowerCase() === '#human') {
@@ -554,21 +588,12 @@ async function handleIncomingMessage(message) {
     const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
     await sendHumanLikeReply(chat, message, userConfirm);
 
-    // Get contact name for admin notification
-    let contactLabel = `+${contactDigits}`;
-    try {
-      const contact = await message.getContact();
-      if (contact && (contact.pushname || contact.name)) {
-        contactLabel = `${contact.pushname || contact.name} (+${contactDigits})`;
-      }
-    } catch (_) {}
-
-    logToDashboard(`User ${contactLabel} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
+    logToDashboard(`User ${logIdentifier} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
 
     // Notify the admin if notification number is set
     if (botCfg.adminNotifyNumber) {
       const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
-      const adminAlert = `⚠️ *[Admin Alert]*\nUser *${contactLabel}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
+      const adminAlert = `⚠️ *[Admin Alert]*\nUser *${logIdentifier}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
       try {
         await client.sendMessage(adminJid, adminAlert);
         logger.info(`Notified admin at ${adminJid} about human request.`);
@@ -587,7 +612,7 @@ async function handleIncomingMessage(message) {
     const reply = handleCommand(text, { userId, stats, isReady });
     const sent = await sendHumanLikeReply(chat, message, reply);
     if (sent) {
-      logToDashboard(`Sent Command Reply to ${contactDigits || userId}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
+      logToDashboard(`Sent Command Reply to ${logIdentifier}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
     }
     return;
   }
@@ -615,19 +640,10 @@ async function handleIncomingMessage(message) {
         // Mute AI automated replies for 10 minutes (10 / 60 hours) with type 'admin_handover'
         muteService.muteUser(userId, 10 / 60, 'admin_handover');
         
-        // Get contact name for admin notification
-        let contactLabel = `+${contactDigits}`;
-        try {
-          const contact = await message.getContact();
-          if (contact && (contact.pushname || contact.name)) {
-            contactLabel = `${contact.pushname || contact.name} (+${contactDigits})`;
-          }
-        } catch (_) {}
-
         // Send admin notification
         if (botCfg.adminNotifyNumber) {
           const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
-          const adminAlert = `⚠️ *[System Alert]*\nUser *${contactLabel}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
+          const adminAlert = `⚠️ *[System Alert]*\nUser *${logIdentifier}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
           try {
             await client.sendMessage(adminJid, adminAlert);
             logger.info(`Notified admin at ${adminJid} about repeated questions.`);
@@ -647,7 +663,7 @@ async function handleIncomingMessage(message) {
 
   if (await hasHumanReplied(chat, message)) {
     logger.info(`Human already replied to ${userId} before AI generation. Skipping bot reply.`);
-    logToDashboard(`Cancelled AI reply to ${contactDigits || userId} (human replied first)`, 'warning');
+    logToDashboard(`Cancelled AI reply to ${logIdentifier} (human replied first)`, 'warning');
     return;
   }
 
@@ -658,7 +674,7 @@ async function handleIncomingMessage(message) {
   const sent = await sendHumanLikeReply(chat, message, reply);
   if (sent) {
     conversationMemory.addMessage(userId, 'assistant', reply);
-    logToDashboard(`Sent AI reply to ${contactDigits || userId}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
+    logToDashboard(`Sent AI reply to ${logIdentifier}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
   }
 }
 

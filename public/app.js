@@ -659,18 +659,17 @@ $('whitelist-add-btn')?.addEventListener('click', () => {
     // User explicitly entered a full international number with +
     fullNumber = raw;
   } else {
-    // If they typed exactly 10 digits, prepend selected country code
-    if (raw.length === 10) {
-      fullNumber = countryCode + raw;
-    } else if (raw.length > 10 && raw.startsWith(countryCode)) {
-      fullNumber = raw;
-    } else if (raw.length > 10) {
-      // It's already a full number or has a different country code, keep it
-      fullNumber = raw;
-    } else {
-      toast('Enter a valid phone number (at least 10 digits)', 'error');
-      return;
+    // Prepend country code if the number doesn't already start with it and is <= 10 digits
+    if (!raw.startsWith(countryCode)) {
+      if (raw.length <= 10) {
+        fullNumber = countryCode + raw;
+      }
     }
+  }
+
+  if (fullNumber.length < 7) {
+    toast('Enter a valid phone number (at least 7 digits)', 'error');
+    return;
   }
 
   const list = new Set(currentConfig?.whitelist || []);
@@ -747,16 +746,17 @@ $('blacklist-add-btn')?.addEventListener('click', () => {
   if (hasPlus) {
     fullNumber = raw;
   } else {
-    if (raw.length === 10) {
-      fullNumber = countryCode + raw;
-    } else if (raw.length > 10 && raw.startsWith(countryCode)) {
-      fullNumber = raw;
-    } else if (raw.length > 10) {
-      fullNumber = raw;
-    } else {
-      toast('Enter a valid phone number (at least 10 digits)', 'error');
-      return;
+    // Prepend country code if the number doesn't already start with it and is <= 10 digits
+    if (!raw.startsWith(countryCode)) {
+      if (raw.length <= 10) {
+        fullNumber = countryCode + raw;
+      }
     }
+  }
+
+  if (fullNumber.length < 7) {
+    toast('Enter a valid phone number (at least 7 digits)', 'error');
+    return;
   }
 
   const list = new Set(currentConfig?.blacklist || []);
