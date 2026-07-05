@@ -9,6 +9,8 @@ export const ControlsScreen: React.FC = () => {
   const { config, updateConfig } = useApp();
   const [newNumber, setNewNumber] = useState('');
   const [countryCode, setCountryCode] = useState('91');
+  const [newBlacklistNumber, setNewBlacklistNumber] = useState('');
+  const [blacklistCountryCode, setBlacklistCountryCode] = useState('91');
   const [holdingReply, setHoldingReply] = useState(config?.holdingReply || '');
   const [autoPauseHours, setAutoPauseHours] = useState(String(config?.autoPauseHours || 12));
   const [savingHolding, setSavingHolding] = useState(false);
@@ -71,6 +73,46 @@ export const ControlsScreen: React.FC = () => {
     }
   };
 
+  const handleToggleBlacklist = async (val: boolean) => {
+    try {
+      await updateConfig({ blacklistEnabled: val });
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update blacklist mode.');
+    }
+  };
+
+  const handleAddBlacklistNumber = async () => {
+    const rawNum = newBlacklistNumber.trim().replace(/[^0-9]/g, '');
+    if (!rawNum || rawNum.length < 10) {
+      Alert.alert('Invalid Number', 'Please enter a valid phone number (e.g. 9876543210).');
+      return;
+    }
+    const raw = blacklistCountryCode + rawNum;
+    const currentList = config?.blacklist || [];
+    if (currentList.includes(raw)) {
+      Alert.alert('Duplicate', 'This phone number is already on the blacklist.');
+      setNewBlacklistNumber('');
+      return;
+    }
+    const newList = [...currentList, raw];
+    try {
+      await updateConfig({ blacklist: newList });
+      setNewBlacklistNumber('');
+    } catch (err) {
+      Alert.alert('Error', 'Could not add number to blacklist.');
+    }
+  };
+
+  const handleRemoveBlacklistNumber = async (num: string) => {
+    const currentList = config?.blacklist || [];
+    const newList = currentList.filter((n) => n !== num);
+    try {
+      await updateConfig({ blacklist: newList });
+    } catch (err) {
+      Alert.alert('Error', 'Could not remove number from blacklist.');
+    }
+  };
+
   const handleSaveHoldingReply = async () => {
     if (!holdingReply.trim()) {
       Alert.alert('Error', 'Holding reply message cannot be empty.');
@@ -130,7 +172,7 @@ export const ControlsScreen: React.FC = () => {
         </View>
 
         {/* Whitelist Toggle */}
-        <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+        <View style={styles.toggleRow}>
           <View style={styles.toggleInfo}>
             <Text style={styles.toggleLabel}>Whitelist Mode</Text>
             <Text style={styles.toggleSub}>Only reply to numbers in the whitelist below</Text>
@@ -140,6 +182,20 @@ export const ControlsScreen: React.FC = () => {
             onValueChange={handleToggleWhitelist}
             trackColor={{ false: colors.inputBg, true: colors.primaryGlow }}
             thumbColor={config.whitelistEnabled ? colors.primary : colors.textMuted}
+          />
+        </View>
+
+        {/* Blacklist Toggle */}
+        <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+          <View style={styles.toggleInfo}>
+            <Text style={styles.toggleLabel}>Blacklist Mode</Text>
+            <Text style={styles.toggleSub}>Do not reply to blacklisted numbers</Text>
+          </View>
+          <Switch
+            value={!!config.blacklistEnabled}
+            onValueChange={handleToggleBlacklist}
+            trackColor={{ false: colors.inputBg, true: colors.primaryGlow }}
+            thumbColor={config.blacklistEnabled ? colors.primary : colors.textMuted}
           />
         </View>
 
@@ -190,6 +246,42 @@ export const ControlsScreen: React.FC = () => {
               <View key={num} style={styles.chip}>
                 <Text style={styles.chipText}>+{num}</Text>
                 <TouchableOpacity onPress={() => handleRemoveNumber(num)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <X size={14} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </View>
+      </View>
+
+      {/* Blacklisted Numbers Card */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Blacklisted Numbers</Text>
+        <View style={styles.addRow}>
+          <View style={styles.phoneInputContainer}>
+            <CountryCodePicker value={blacklistCountryCode} onChange={setBlacklistCountryCode} />
+            <TextInput
+              style={styles.phoneInput}
+              placeholder="9876543210"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+              value={newBlacklistNumber}
+              onChangeText={setNewBlacklistNumber}
+            />
+          </View>
+          <TouchableOpacity style={styles.addBtn} onPress={handleAddBlacklistNumber}>
+            <Plus size={20} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.chipList}>
+          {(config.blacklist || []).length === 0 ? (
+            <Text style={styles.emptyText}>No numbers added yet</Text>
+          ) : (
+            (config.blacklist || []).map((num) => (
+              <View key={num} style={styles.chip}>
+                <Text style={styles.chipText}>+{num}</Text>
+                <TouchableOpacity onPress={() => handleRemoveBlacklistNumber(num)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <X size={14} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>

@@ -442,12 +442,14 @@ function renderConfig(cfg) {
   updateCharCount();
   if ($('toggle-enabled')) $('toggle-enabled').checked = !!cfg.botEnabled;
   if ($('toggle-whitelist')) $('toggle-whitelist').checked = !!cfg.whitelistEnabled;
+  if ($('toggle-blacklist')) $('toggle-blacklist').checked = !!cfg.blacklistEnabled;
   if ($('holding-reply-input')) $('holding-reply-input').value = cfg.holdingReply || '';
   if ($('admin-notify-number')) {
     setPhoneAndSelect('admin-notify-number', 'admin-notify-country-code', cfg.adminNotifyNumber);
   }
   if ($('auto-pause-hours')) $('auto-pause-hours').value = cfg.autoPauseDurationHours !== undefined ? cfg.autoPauseDurationHours : 12;
   renderWhitelist(cfg.whitelist || []);
+  renderBlacklist(cfg.blacklist || []);
   _loadingConfig = false;
 }
 
@@ -569,6 +571,22 @@ $('toggle-whitelist')?.addEventListener('change', async (e) => {
   }
 });
 
+// ===== Blacklist enabled toggle =====
+$('toggle-blacklist')?.addEventListener('change', async (e) => {
+  if (_loadingConfig) return;
+  const blacklistEnabled = e.target.checked;
+  try {
+    currentConfig = await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify({ blacklistEnabled }),
+    });
+    toast(blacklistEnabled ? 'Blacklist mode active' : 'No longer blocking numbers', blacklistEnabled ? 'success' : '');
+  } catch (err) {
+    e.target.checked = !blacklistEnabled; // revert on failure
+    toast('Could not update — check backend', 'error');
+  }
+});
+
 // ===== Holding reply =====
 $('holding-save-btn')?.addEventListener('click', async () => {
   const holdingReply = $('holding-reply-input')?.value.trim() || '';
@@ -673,6 +691,92 @@ $('whitelist-input')?.addEventListener('keydown', (e) => {
 function removeFromWhitelist(number) {
   const list = (currentConfig?.whitelist || []).filter((n) => n !== number);
   saveWhitelist(list);
+}
+
+// ===== Blacklist =====
+function renderBlacklist(list) {
+  const wrap = $('blacklist-chips');
+  const empty = $('blacklist-empty');
+  if (!wrap || !empty) return;
+  wrap.innerHTML = '';
+  if (!list.length) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  list.forEach((number) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.innerHTML = `<span>${number}</span>`;
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+    removeBtn.setAttribute('aria-label', `Remove ${number}`);
+    removeBtn.addEventListener('click', () => removeFromBlacklist(number));
+    chip.appendChild(removeBtn);
+    wrap.appendChild(chip);
+  });
+}
+
+async function saveBlacklist(list) {
+  try {
+    currentConfig = await api('/api/config', {
+      method: 'PUT',
+      body: JSON.stringify({ blacklist: list }),
+    });
+    renderBlacklist(currentConfig.blacklist || []);
+  } catch (err) {
+    toast('Could not update blacklist', 'error');
+  }
+}
+
+$('blacklist-add-btn')?.addEventListener('click', () => {
+  const input = $('blacklist-input');
+  const countrySelect = $('blacklist-country-code');
+  if (!input || !countrySelect) return;
+
+  const hasPlus = input.value.trim().startsWith('+');
+  let raw = input.value.trim().replace(/[^0-9]/g, '');
+  if (!raw) {
+    toast('Enter a valid phone number', 'error');
+    return;
+  }
+
+  let fullNumber = raw;
+  const countryCode = countrySelect.value;
+
+  if (hasPlus) {
+    fullNumber = raw;
+  } else {
+    if (raw.length === 10) {
+      fullNumber = countryCode + raw;
+    } else if (raw.length > 10 && raw.startsWith(countryCode)) {
+      fullNumber = raw;
+    } else if (raw.length > 10) {
+      fullNumber = raw;
+    } else {
+      toast('Enter a valid phone number (at least 10 digits)', 'error');
+      return;
+    }
+  }
+
+  const list = new Set(currentConfig?.blacklist || []);
+  if (list.has(fullNumber)) {
+    toast('Already on the blacklist');
+    input.value = '';
+    return;
+  }
+  list.add(fullNumber);
+  input.value = '';
+  saveBlacklist([...list]);
+});
+
+$('blacklist-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('blacklist-add-btn')?.click();
+});
+
+function removeFromBlacklist(number) {
+  const list = (currentConfig?.blacklist || []).filter((n) => n !== number);
+  saveBlacklist(list);
 }
 
 // ===== Disconnect / Reset =====

@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
 const config = require('../config');
+const { parseNumberedList } = require('../utils/parser');
 
 const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
 
@@ -123,24 +124,39 @@ function getAllAdImagesInOrder(dirPath) {
 function getCaptionsForImages(dirPath, imageCount, fallbackCaption = '') {
   const dir = dirPath || getAdImageDir();
   const captionsFile = path.join(dir, 'captions.txt');
+  let parsedCaptions = null;
 
   try {
     if (fs.existsSync(captionsFile)) {
       const raw = fs.readFileSync(captionsFile, 'utf-8');
-      const lines = raw.split('\n').map(l => l.trim());
-      // Pad with empty strings if fewer captions than images
-      const captions = [];
-      for (let i = 0; i < imageCount; i++) {
-        captions.push(lines[i] || '');
+      const numberedList = parseNumberedList(raw);
+      if (numberedList) {
+        parsedCaptions = numberedList;
+      } else {
+        parsedCaptions = raw.split('\n').map(l => l.trim());
       }
-      return captions;
     }
   } catch (err) {
     logger.warn(`Failed to read captions.txt: ${err.message}`);
   }
 
-  // Fallback: use the single caption from config for all images
-  return Array(imageCount).fill(fallbackCaption);
+  if (!parsedCaptions) {
+    // Try to parse fallbackCaption as numbered list if it matches the pattern
+    const numberedFallback = parseNumberedList(fallbackCaption);
+    if (numberedFallback) {
+      parsedCaptions = numberedFallback;
+    } else {
+      // Just repeat the fallbackCaption for all images
+      parsedCaptions = Array(imageCount).fill(fallbackCaption);
+    }
+  }
+
+  // Pad or slice parsedCaptions to match imageCount
+  const captions = [];
+  for (let i = 0; i < imageCount; i++) {
+    captions.push(parsedCaptions[i] || '');
+  }
+  return captions;
 }
 
 module.exports = {

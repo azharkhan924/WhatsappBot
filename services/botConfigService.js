@@ -13,8 +13,10 @@ const SYSTEM_PROMPT_FILE = path.join(config.dataDir, 'systemPrompt.txt');
 const defaultConfig = {
   botEnabled: true,
   whitelistEnabled: true,
+  blacklistEnabled: false,
   holdingReply: 'Yeh wala main personally dekh ke reply karunga, thoda wait karo',
   whitelist: [],
+  blacklist: [],
   // Scheduler settings (dashboard overrides for .env defaults)
   schedulerEnabled: undefined,
   schedulerCron: '',
@@ -97,12 +99,19 @@ function updateConfig(updates) {
   if (typeof updates.whitelistEnabled === 'boolean') {
     currentConfig.whitelistEnabled = updates.whitelistEnabled;
   }
+  if (typeof updates.blacklistEnabled === 'boolean') {
+    currentConfig.blacklistEnabled = updates.blacklistEnabled;
+  }
   if (typeof updates.holdingReply === 'string') {
     currentConfig.holdingReply = updates.holdingReply;
   }
   if (Array.isArray(updates.whitelist)) {
     // Ensure array of strings, clean phone numbers
     currentConfig.whitelist = updates.whitelist.map((num) => String(num).trim()).filter(Boolean);
+  }
+  if (Array.isArray(updates.blacklist)) {
+    // Ensure array of strings, clean phone numbers
+    currentConfig.blacklist = updates.blacklist.map((num) => String(num).trim()).filter(Boolean);
   }
   if (typeof updates.systemPrompt === 'string') {
     updateSystemPrompt(updates.systemPrompt);

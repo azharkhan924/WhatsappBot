@@ -1320,6 +1320,16 @@
                 <span class="slider"></span>
               </label>
             </div>
+            <div class="toggle-row">
+              <div class="toggle-info">
+                <div class="toggle-label">Blacklist Mode</div>
+                <div class="toggle-sub">Do not reply to blacklisted numbers</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="toggle-blacklist">
+                <span class="slider"></span>
+              </label>
+            </div>
 
             <div class="section-label" style="margin-top:16px;">🚨 Human Handover Mute (Type #human)</div>
             <div style="margin-bottom:12px;">
@@ -1368,6 +1378,30 @@
             </div>
             <div class="chip-list" id="whitelist-chips"></div>
             <div class="empty-note hidden" id="whitelist-empty">No numbers added yet</div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Blacklisted Numbers</div>
+            <div class="input-row" style="margin-bottom:8px; gap: 8px;">
+              <div class="phone-input-container" style="flex: 1;">
+                <select id="blacklist-country-code">
+                  <option value="91" selected>+91</option>
+                  <option value="1">+1</option>
+                  <option value="44">+44</option>
+                  <option value="971">+971</option>
+                  <option value="62">+62</option>
+                  <option value="60">+60</option>
+                  <option value="65">+65</option>
+                  <option value="92">+92</option>
+                  <option value="880">+880</option>
+                  <option value="966">+966</option>
+                </select>
+                <input type="text" id="blacklist-input" placeholder="9876543210 (without country code)">
+              </div>
+              <button class="btn btn-primary btn-sm" id="blacklist-add-btn" style="padding: 12px 24px; min-width: 80px;">Add</button>
+            </div>
+            <div class="chip-list" id="blacklist-chips"></div>
+            <div class="empty-note hidden" id="blacklist-empty">No numbers added yet</div>
           </div>
         </div>
 

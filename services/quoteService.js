@@ -16,6 +16,12 @@ const API_TIMEOUT_MS = 8000;
  * Load quotes from the local .txt fallback file.
  * Expected format: one quote per line, "text | author"
  */
+const { parseNumberedList } = require('../utils/parser');
+
+/**
+ * Load quotes from the local .txt fallback file.
+ * Expected format: one quote per line, "text | author", OR a numbered list
+ */
 function loadLocalQuotes() {
   try {
     if (!fs.existsSync(QUOTES_FILE)) {
@@ -23,12 +29,20 @@ function loadLocalQuotes() {
       return [];
     }
     const raw = fs.readFileSync(QUOTES_FILE, 'utf-8');
-    const lines = raw
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
+    
+    // Parse using numbered list helper first if the pattern exists
+    const numberedList = parseNumberedList(raw);
+    let items = [];
+    if (numberedList) {
+      items = numberedList;
+    } else {
+      items = raw
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+    }
 
-    return lines.map((line) => {
+    return items.map((line) => {
       const parts = line.split('|');
       const text = (parts[0] || '').trim();
       const author = (parts[1] || 'Unknown').trim();

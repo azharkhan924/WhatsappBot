@@ -113,8 +113,12 @@ async function putConfig(req, res) {
     }
   }
 
-  // Save multi-line captions to captions.txt in the ad images directory
-  if (typeof updates.schedulerAdCaption === 'string' && updates.schedulerAdCaption.includes('\n')) {
+  // Save multi-line or numbered captions to captions.txt in the ad images directory
+  const { parseNumberedList } = require('../utils/parser');
+  const isMultiCaption = typeof updates.schedulerAdCaption === 'string' &&
+    (updates.schedulerAdCaption.includes('\n') || parseNumberedList(updates.schedulerAdCaption) !== null);
+
+  if (isMultiCaption) {
     try {
       const adService = require('../services/adService');
       const adDir = updates.schedulerAdImageDir || updated.schedulerAdImageDir || adService.getAdImageDir();

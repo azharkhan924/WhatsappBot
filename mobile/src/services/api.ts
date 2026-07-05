@@ -14,7 +14,9 @@ export interface BotConfig {
   systemPrompt?: string;
   botEnabled?: boolean;
   whitelistEnabled?: boolean;
+  blacklistEnabled?: boolean;
   whitelist?: string[];
+  blacklist?: string[];
   holdingReply?: string;
   autoPauseHours?: number;
 }
