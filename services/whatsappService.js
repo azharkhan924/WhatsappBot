@@ -34,6 +34,21 @@ function rememberBotMessageId(id) {
   }
 }
 
+function formatJid(jidOrNumber) {
+  if (!jidOrNumber) return '';
+  const str = String(jidOrNumber).trim();
+  if (
+    str.includes('@c.us') ||
+    str.includes('@g.us') ||
+    str.includes('@newsletter') ||
+    str.includes('@lid') ||
+    str.includes('@s.whatsapp.net')
+  ) {
+    return str;
+  }
+  return `${str}@c.us`;
+}
+
 const stats = {
   startedAt: Date.now(),
   messagesReceived: 0,
@@ -592,7 +607,7 @@ async function handleIncomingMessage(message) {
 
     // Notify the admin if notification number is set
     if (botCfg.adminNotifyNumber) {
-      const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
+      const adminJid = formatJid(botCfg.adminNotifyNumber);
       const adminAlert = `⚠️ *[Admin Alert]*\nUser *${logIdentifier}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
       try {
         await client.sendMessage(adminJid, adminAlert);
@@ -642,7 +657,7 @@ async function handleIncomingMessage(message) {
         
         // Send admin notification
         if (botCfg.adminNotifyNumber) {
-          const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
+          const adminJid = formatJid(botCfg.adminNotifyNumber);
           const adminAlert = `⚠️ *[System Alert]*\nUser *${logIdentifier}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
           try {
             await client.sendMessage(adminJid, adminAlert);
@@ -733,7 +748,7 @@ async function sendMessage(to, text) {
   if (!client || !isReady) {
     throw new Error('WhatsApp client is not ready yet.');
   }
-  const chatId = to.includes('@c.us') || to.includes('@g.us') || to.includes('@newsletter') ? to : `${to}@c.us`;
+  const chatId = formatJid(to);
   const isNewsletter = chatId.endsWith('@newsletter');
   const options = isNewsletter ? { sendSeen: false } : {};
   const sentMsg = await client.sendMessage(chatId, text, options);
@@ -747,7 +762,7 @@ async function sendMediaMessage(to, filePath, caption = '') {
   if (!client || !isReady) {
     throw new Error('WhatsApp client is not ready yet.');
   }
-  const chatId = to.includes('@c.us') || to.includes('@g.us') || to.includes('@newsletter') ? to : `${to}@c.us`;
+  const chatId = formatJid(to);
   const media = MessageMedia.fromFilePath(filePath);
   const isNewsletter = chatId.endsWith('@newsletter');
   const options = isNewsletter ? { caption, sendSeen: false } : (caption ? { caption } : {});
@@ -933,4 +948,5 @@ module.exports = {
   reconnect,
   requestPairingCode,
   hardReset,
+  formatJid,
 };

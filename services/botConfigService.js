@@ -140,8 +140,12 @@ function updateConfig(updates) {
     currentConfig.schedulerAdCaption = updates.schedulerAdCaption;
   }
   if (typeof updates.adminNotifyNumber === 'string') {
-    // Clean to digits only, or empty string
-    currentConfig.adminNotifyNumber = updates.adminNotifyNumber.trim().replace(/[^0-9]/g, '');
+    const trimmed = updates.adminNotifyNumber.trim();
+    if (trimmed.includes('@')) {
+      currentConfig.adminNotifyNumber = trimmed;
+    } else {
+      currentConfig.adminNotifyNumber = trimmed.replace(/[^0-9]/g, '');
+    }
   }
   if (updates.autoPauseDurationHours !== undefined) {
     const num = parseInt(updates.autoPauseDurationHours, 10);

@@ -116,7 +116,13 @@ async function resolveTargets(targets, type) {
     if (!trimmed) continue;
 
     // Already a full WhatsApp ID
-    if (trimmed.includes('@g.us') || trimmed.includes('@newsletter')) {
+    if (
+      trimmed.includes('@g.us') ||
+      trimmed.includes('@newsletter') ||
+      trimmed.includes('@c.us') ||
+      trimmed.includes('@lid') ||
+      trimmed.includes('@s.whatsapp.net')
+    ) {
       resolved.push({ id: trimmed, name: trimmed });
       continue;
     }

@@ -415,6 +415,11 @@ function setPhoneAndSelect(inputId, selectId, fullNumber) {
     return;
   }
   
+  if (String(fullNumber).includes('@')) {
+    inputEl.value = fullNumber;
+    return;
+  }
+  
   // Clean all non-digits
   const digits = String(fullNumber).replace(/[^0-9]/g, '');
   
@@ -454,8 +459,8 @@ function renderConfig(cfg) {
 }
 
 async function saveAdminNotifyNumber() {
-  const number = $('admin-notify-number').value.trim().replace(/[^0-9]/g, '');
-  if (!number) {
+  const inputVal = $('admin-notify-number').value.trim();
+  if (!inputVal) {
     try {
       currentConfig = await api('/api/config', {
         method: 'PUT',
@@ -467,8 +472,20 @@ async function saveAdminNotifyNumber() {
     }
     return;
   }
-  const countryCode = $('admin-notify-country-code').value;
-  const adminNotifyNumber = countryCode + number;
+
+  let adminNotifyNumber;
+  if (inputVal.includes('@')) {
+    adminNotifyNumber = inputVal;
+  } else {
+    const number = inputVal.replace(/[^0-9]/g, '');
+    if (!number) {
+      toast('Enter a valid phone number or JID', 'error');
+      return;
+    }
+    const countryCode = $('admin-notify-country-code').value;
+    adminNotifyNumber = countryCode + number;
+  }
+
   try {
     currentConfig = await api('/api/config', {
       method: 'PUT',
@@ -645,31 +662,38 @@ $('whitelist-add-btn')?.addEventListener('click', () => {
   const countrySelect = $('whitelist-country-code');
   if (!input || !countrySelect) return;
 
-  const hasPlus = input.value.trim().startsWith('+');
-  let raw = input.value.trim().replace(/[^0-9]/g, '');
-  if (!raw) {
-    toast('Enter a valid phone number', 'error');
-    return;
-  }
+  const inputVal = input.value.trim();
+  let fullNumber;
 
-  let fullNumber = raw;
-  const countryCode = countrySelect.value;
-
-  if (hasPlus) {
-    // User explicitly entered a full international number with +
-    fullNumber = raw;
+  if (inputVal.includes('@')) {
+    fullNumber = inputVal;
   } else {
-    // Prepend country code if the number doesn't already start with it and is <= 10 digits
-    if (!raw.startsWith(countryCode)) {
-      if (raw.length <= 10) {
-        fullNumber = countryCode + raw;
+    const hasPlus = inputVal.startsWith('+');
+    let raw = inputVal.replace(/[^0-9]/g, '');
+    if (!raw) {
+      toast('Enter a valid phone number or JID', 'error');
+      return;
+    }
+
+    fullNumber = raw;
+    const countryCode = countrySelect.value;
+
+    if (hasPlus) {
+      // User explicitly entered a full international number with +
+      fullNumber = raw;
+    } else {
+      // Prepend country code if the number doesn't already start with it and is <= 10 digits
+      if (!raw.startsWith(countryCode)) {
+        if (raw.length <= 10) {
+          fullNumber = countryCode + raw;
+        }
       }
     }
-  }
 
-  if (fullNumber.length < 7) {
-    toast('Enter a valid phone number (at least 7 digits)', 'error');
-    return;
+    if (fullNumber.length < 7) {
+      toast('Enter a valid phone number (at least 7 digits)', 'error');
+      return;
+    }
   }
 
   const list = new Set(currentConfig?.whitelist || []);
@@ -733,30 +757,37 @@ $('blacklist-add-btn')?.addEventListener('click', () => {
   const countrySelect = $('blacklist-country-code');
   if (!input || !countrySelect) return;
 
-  const hasPlus = input.value.trim().startsWith('+');
-  let raw = input.value.trim().replace(/[^0-9]/g, '');
-  if (!raw) {
-    toast('Enter a valid phone number', 'error');
-    return;
-  }
+  const inputVal = input.value.trim();
+  let fullNumber;
 
-  let fullNumber = raw;
-  const countryCode = countrySelect.value;
-
-  if (hasPlus) {
-    fullNumber = raw;
+  if (inputVal.includes('@')) {
+    fullNumber = inputVal;
   } else {
-    // Prepend country code if the number doesn't already start with it and is <= 10 digits
-    if (!raw.startsWith(countryCode)) {
-      if (raw.length <= 10) {
-        fullNumber = countryCode + raw;
+    const hasPlus = inputVal.startsWith('+');
+    let raw = inputVal.replace(/[^0-9]/g, '');
+    if (!raw) {
+      toast('Enter a valid phone number or JID', 'error');
+      return;
+    }
+
+    fullNumber = raw;
+    const countryCode = countrySelect.value;
+
+    if (hasPlus) {
+      fullNumber = raw;
+    } else {
+      // Prepend country code if the number doesn't already start with it and is <= 10 digits
+      if (!raw.startsWith(countryCode)) {
+        if (raw.length <= 10) {
+          fullNumber = countryCode + raw;
+        }
       }
     }
-  }
 
-  if (fullNumber.length < 7) {
-    toast('Enter a valid phone number (at least 7 digits)', 'error');
-    return;
+    if (fullNumber.length < 7) {
+      toast('Enter a valid phone number (at least 7 digits)', 'error');
+      return;
+    }
   }
 
   const list = new Set(currentConfig?.blacklist || []);

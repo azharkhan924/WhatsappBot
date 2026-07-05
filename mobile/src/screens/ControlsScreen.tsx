@@ -42,15 +42,19 @@ export const ControlsScreen: React.FC = () => {
   };
 
   const handleAddNumber = async () => {
-    const rawNum = newNumber.trim().replace(/[^0-9]/g, '');
-    if (!rawNum || rawNum.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid phone number (e.g. 9876543210).');
-      return;
+    const trimmed = newNumber.trim();
+    let raw = trimmed;
+    if (!trimmed.includes('@')) {
+      const rawNum = trimmed.replace(/[^0-9]/g, '');
+      if (!rawNum || rawNum.length < 10) {
+        Alert.alert('Invalid Number', 'Please enter a valid phone number (e.g. 9876543210).');
+        return;
+      }
+      raw = countryCode + rawNum;
     }
-    const raw = countryCode + rawNum;
     const currentList = config?.whitelist || [];
     if (currentList.includes(raw)) {
-      Alert.alert('Duplicate', 'This phone number is already on the whitelist.');
+      Alert.alert('Duplicate', 'This entry is already on the whitelist.');
       setNewNumber('');
       return;
     }
@@ -82,15 +86,19 @@ export const ControlsScreen: React.FC = () => {
   };
 
   const handleAddBlacklistNumber = async () => {
-    const rawNum = newBlacklistNumber.trim().replace(/[^0-9]/g, '');
-    if (!rawNum || rawNum.length < 10) {
-      Alert.alert('Invalid Number', 'Please enter a valid phone number (e.g. 9876543210).');
-      return;
+    const trimmed = newBlacklistNumber.trim();
+    let raw = trimmed;
+    if (!trimmed.includes('@')) {
+      const rawNum = trimmed.replace(/[^0-9]/g, '');
+      if (!rawNum || rawNum.length < 10) {
+        Alert.alert('Invalid Number', 'Please enter a valid phone number (e.g. 9876543210).');
+        return;
+      }
+      raw = blacklistCountryCode + rawNum;
     }
-    const raw = blacklistCountryCode + rawNum;
     const currentList = config?.blacklist || [];
     if (currentList.includes(raw)) {
-      Alert.alert('Duplicate', 'This phone number is already on the blacklist.');
+      Alert.alert('Duplicate', 'This entry is already on the blacklist.');
       setNewBlacklistNumber('');
       return;
     }
