@@ -512,24 +512,51 @@ async function handleIncomingMessage(message) {
   // Resolve actual phone number from contact info to handle internal unique IDs (LIDs)
   let senderNumber = '';
   let contactName = '';
+  const senderId = message.author || message.from;
+  const isLidJid = senderId.includes('@lid');
+
   try {
     const contact = await message.getContact();
     if (contact) {
-      if (contact.number) {
-        senderNumber = contact.number;
-      }
       if (contact.pushname || contact.name) {
         contactName = contact.pushname || contact.name;
+      }
+      // contact.number returns LID digits for LID-based contacts, NOT the real phone number.
+      // Only trust it if the JID is NOT a LID.
+      if (contact.number && !isLidJid) {
+        senderNumber = contact.number;
       }
     }
   } catch (err) {
     logger.warn(`Failed to resolve contact info: ${err.message}`);
   }
 
-  // Fallback to extracting digits from JID if getContact fails
-  const senderId = message.author || message.from;
+  // For LID-based JIDs, resolve the real phone number via WhatsApp's internal API
+  if (!senderNumber && isLidJid && client && client.pupPage) {
+    try {
+      const resolved = await client.pupPage.evaluate(async (lid) => {
+        const result = await window.WWebJS.enforceLidAndPnRetrieval(lid);
+        if (result && result.phone) {
+          // result.phone is a WID object; extract the user part (the actual phone number)
+          return result.phone.user || result.phone._serialized?.split('@')[0] || '';
+        }
+        return '';
+      }, senderId);
+      if (resolved) {
+        senderNumber = resolved;
+        logger.info(`Resolved LID ${senderId} to phone number ${senderNumber}`);
+      }
+    } catch (err) {
+      logger.warn(`Failed to resolve LID to phone number: ${err.message}`);
+    }
+  }
+
+  // Fallback to extracting digits from JID if above methods fail
   if (!senderNumber) {
     senderNumber = senderId.replace(/[^0-9]/g, '');
+    if (isLidJid) {
+      logger.warn(`Could not resolve LID ${senderId} to real phone number, using LID digits as fallback: ${senderNumber}`);
+    }
   }
 
   const logIdentifier = contactName ? `${contactName} (+${senderNumber})` : `+${senderNumber}`;
