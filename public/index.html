@@ -865,6 +865,11 @@
         flex-direction: column;
       }
 
+      /* Ensure mobile actions (theme toggle + logout) are always visible */
+      #mobile-actions {
+        display: flex !important;
+      }
+
       .toast {
         bottom: 90px;
         left: 16px;
@@ -1000,11 +1005,11 @@
       <div id="section-admin">
         <div class="gate-field">
           <label>Username</label>
-          <input type="text" id="gate-admin-user" value="admin" autocomplete="off">
+          <input type="text" id="gate-admin-user" placeholder="Enter username" autocomplete="off">
         </div>
         <div class="gate-field">
           <label>Password</label>
-          <input type="password" id="gate-admin-pass" value="admin123" autocomplete="off">
+          <input type="password" id="gate-admin-pass" placeholder="Enter password" autocomplete="off">
         </div>
         <div class="gate-error" id="gate-error-admin"></div>
         <button class="btn btn-primary" id="gate-admin-submit" style="margin-top:8px;">Login</button>
@@ -1088,9 +1093,9 @@
       <div class="main-header">
         <h2 id="main-title">Connection</h2>
         <!-- Mobile: theme + logout -->
-        <div class="sidebar-actions" style="display:none;" id="mobile-actions">
+        <div class="sidebar-actions" id="mobile-actions" style="display:none;">
           <button class="icon-btn" id="theme-toggle-btn-mobile" title="Toggle theme">🌙</button>
-          <button class="icon-btn" id="disconnect-btn-mobile" title="Logout">⏻</button>
+          <button class="icon-btn" id="disconnect-btn-mobile" title="Logout" style="font-size:13px; font-weight:600;">↪</button>
         </div>
       </div>
 
@@ -1259,8 +1264,9 @@
             </div>
 
             <!-- Ad Caption -->
-            <div class="section-label">💬 Ad Caption</div>
-            <input type="text" id="scheduler-ad-caption" placeholder="Optional caption for ad images">
+            <div class="section-label">💬 Ad Captions</div>
+            <textarea id="scheduler-ad-caption" style="min-height:80px;" placeholder="One caption per line (matching image order).&#10;If only one line, it applies to all images."></textarea>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Or create a <b>captions.txt</b> in the images folder (one caption per line)</div>
 
             <!-- Quotes -->
             <div class="section-label" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1336,7 +1342,7 @@
             </div>
             <div>
               <div class="toggle-sub" style="display:block; margin-bottom:6px; font-weight:600;">Auto-Pause AI (Hours)</div>
-              <input type="number" id="auto-pause-hours" placeholder="12" min="1" value="12">
+              <input type="number" id="auto-pause-hours" placeholder="12" min="1">
             </div>
           </div>
 

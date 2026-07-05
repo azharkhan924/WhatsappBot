@@ -28,7 +28,7 @@ const config = {
   ai: {
     provider: (process.env.AI_PROVIDER || 'gemini').toLowerCase(),
     temperature: toFloat(process.env.TEMPERATURE, 0.7),
-    maxTokens: toInt(process.env.MAX_TOKENS, 512),
+    maxTokens: toInt(process.env.MAX_TOKENS, 2048),
     timeoutMs: toInt(process.env.AI_TIMEOUT_MS, 15000),
     maxRetries: toInt(process.env.AI_MAX_RETRIES, 2),
     gemini: {

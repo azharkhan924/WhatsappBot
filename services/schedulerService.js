@@ -94,14 +94,8 @@ function getSchedulerConfig() {
  * Format the quote into a nice WhatsApp message.
  */
 function formatQuoteMessage(quote) {
-  return [
-    '🌅 *Quote of the Day*',
-    '',
-    `_"${quote.text}"_`,
-    `— *${quote.author}*`,
-    '',
-    'Have a great day! ✨',
-  ].join('\n');
+  // Send the raw text as-is — the .txt file can contain any message, not just quotes
+  return quote.text;
 }
 
 /**
@@ -163,8 +157,11 @@ async function sendScheduledMessages() {
 
   const quoteMessage = formatQuoteMessage(quote);
 
-  // 2. Get ad image
-  const adImage = adService.getRandomAdImage(schedulerCfg.adImageDir);
+  // 2. Get all ad images in insertion order with individual captions
+  const allImages = adService.getAllAdImagesInOrder(schedulerCfg.adImageDir);
+  const captions = allImages.length > 0
+    ? adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '')
+    : [];
 
   // 3. Resolve all targets (groups + channels)
   const groupTargets = await resolveTargets(schedulerCfg.targetGroups, 'group');
@@ -183,33 +180,43 @@ async function sendScheduledMessages() {
   for (const target of allTargets) {
     const targetDetail = { target: target.name || target.id, status: 'pending' };
 
-    // Send quote text
+    // Send quote/message text
     try {
       await whatsappServiceRef.sendMessage(target.id, quoteMessage);
       targetDetail.quoteSent = true;
-      logger.info(`Scheduler: quote sent to ${target.name || target.id}`);
+      logger.info(`Scheduler: message sent to ${target.name || target.id}`);
     } catch (err) {
       targetDetail.quoteSent = false;
       targetDetail.quoteError = err.message;
       overallStatus = 'partial_failure';
-      logger.error(`Scheduler: failed to send quote to ${target.name || target.id}: ${err.message}`);
+      logger.error(`Scheduler: failed to send message to ${target.name || target.id}: ${err.message}`);
     }
 
-    // Send ad image (if available)
-    if (adImage) {
-      try {
-        await whatsappServiceRef.sendMediaMessage(
-          target.id,
-          adImage.filePath,
-          schedulerCfg.adCaption || ''
-        );
-        targetDetail.adSent = true;
-        logger.info(`Scheduler: ad image sent to ${target.name || target.id}: ${adImage.filename}`);
-      } catch (err) {
-        targetDetail.adSent = false;
-        targetDetail.adError = err.message;
-        overallStatus = 'partial_failure';
-        logger.error(`Scheduler: failed to send ad to ${target.name || target.id}: ${err.message}`);
+    // Send all ad images in order, each with its own caption
+    if (allImages.length > 0) {
+      let imagesSent = 0;
+      let imagesFailed = 0;
+      for (let i = 0; i < allImages.length; i++) {
+        const img = allImages[i];
+        const caption = captions[i] || '';
+        try {
+          await whatsappServiceRef.sendMediaMessage(target.id, img.filePath, caption);
+          imagesSent++;
+          logger.info(`Scheduler: image ${i + 1}/${allImages.length} sent to ${target.name || target.id}: ${img.filename}`);
+        } catch (err) {
+          imagesFailed++;
+          overallStatus = 'partial_failure';
+          logger.error(`Scheduler: failed to send image ${img.filename} to ${target.name || target.id}: ${err.message}`);
+        }
+        // Small delay between images to avoid rate limiting
+        if (i < allImages.length - 1) {
+          await new Promise((r) => setTimeout(r, 1500));
+        }
+      }
+      targetDetail.adSent = imagesSent > 0;
+      targetDetail.adCount = `${imagesSent}/${allImages.length}`;
+      if (imagesFailed > 0) {
+        targetDetail.adError = `${imagesFailed} image(s) failed`;
       }
     } else {
       targetDetail.adSent = false;

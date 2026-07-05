@@ -4,6 +4,7 @@ let DASHBOARD_KEY = localStorage.getItem('bot_dashboard_key') || '';
 let socket = null;
 let currentConfig = null;
 let promptDirty = false;
+let _loadingConfig = false; // Guard flag to prevent change events during config load
 
 const $ = (id) => document.getElementById(id);
 
@@ -436,6 +437,7 @@ function setPhoneAndSelect(inputId, selectId, fullNumber) {
 }
 
 function renderConfig(cfg) {
+  _loadingConfig = true; // Prevent change events from firing during programmatic value setting
   if ($('prompt-editor')) $('prompt-editor').value = cfg.systemPrompt || '';
   updateCharCount();
   if ($('toggle-enabled')) $('toggle-enabled').checked = !!cfg.botEnabled;
@@ -446,6 +448,7 @@ function renderConfig(cfg) {
   }
   if ($('auto-pause-hours')) $('auto-pause-hours').value = cfg.autoPauseDurationHours !== undefined ? cfg.autoPauseDurationHours : 12;
   renderWhitelist(cfg.whitelist || []);
+  _loadingConfig = false;
 }
 
 async function saveAdminNotifyNumber() {
@@ -475,10 +478,11 @@ async function saveAdminNotifyNumber() {
   }
 }
 
-$('admin-notify-number')?.addEventListener('change', saveAdminNotifyNumber);
-$('admin-notify-country-code')?.addEventListener('change', saveAdminNotifyNumber);
+$('admin-notify-number')?.addEventListener('change', () => { if (!_loadingConfig) saveAdminNotifyNumber(); });
+$('admin-notify-country-code')?.addEventListener('change', () => { if (!_loadingConfig) saveAdminNotifyNumber(); });
 
 $('auto-pause-hours')?.addEventListener('change', async (e) => {
+  if (_loadingConfig) return; // Don't save during programmatic config load
   const autoPauseDurationHours = parseInt(e.target.value, 10) || 12;
   try {
     currentConfig = await api('/api/config', {
@@ -535,6 +539,7 @@ window.addEventListener('beforeunload', (e) => {
 
 // ===== Bot enabled toggle =====
 $('toggle-enabled')?.addEventListener('change', async (e) => {
+  if (_loadingConfig) return;
   const botEnabled = e.target.checked;
   try {
     currentConfig = await api('/api/config', {
@@ -550,6 +555,7 @@ $('toggle-enabled')?.addEventListener('change', async (e) => {
 
 // ===== Whitelist enabled toggle =====
 $('toggle-whitelist')?.addEventListener('change', async (e) => {
+  if (_loadingConfig) return;
   const whitelistEnabled = e.target.checked;
   try {
     currentConfig = await api('/api/config', {

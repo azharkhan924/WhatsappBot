@@ -503,21 +503,29 @@ async function handleIncomingMessage(message) {
       return;
     }
 
+    // Normalize the sender's digits: strip @c.us suffix, keep only digits
+    const senderDigits = userId.replace(/@.*$/, '').replace(/[^0-9]/g, '');
+    const senderLast10 = senderDigits.length >= 10 ? senderDigits.slice(-10) : senderDigits;
+
     const isWhitelisted = whitelist.some((num) => {
       const cleanNum = String(num).replace(/[^0-9]/g, '');
       if (!cleanNum) return false;
-      if (contactDigits === cleanNum || userId.replace(/[^0-9]/g, '') === cleanNum) return true;
-      if (contactDigits.length >= 10 && cleanNum.length >= 10) {
-        if (contactDigits.slice(-10) === cleanNum.slice(-10)) return true;
-      }
-      return contactDigits.endsWith(cleanNum) || cleanNum.endsWith(contactDigits);
+      // Exact full-number match
+      if (senderDigits === cleanNum) return true;
+      // Last-10-digits match (core phone number without country code)
+      const numLast10 = cleanNum.length >= 10 ? cleanNum.slice(-10) : cleanNum;
+      if (senderLast10 === numLast10) return true;
+      // Suffix match (one ends with the other)
+      if (senderDigits.endsWith(cleanNum) || cleanNum.endsWith(senderDigits)) return true;
+      return false;
     });
 
     if (!isWhitelisted) {
-      logger.info(`Sender ${userId} (contact: ${contactDigits}) is not on the whitelist. Skipping bot reply.`);
+      logger.info(`Sender ${userId} (digits: ${senderDigits}, last10: ${senderLast10}) is not on the whitelist. Whitelist: [${whitelist.join(', ')}]`);
       logToDashboard(`Incoming message from ${contactDigits || userId}: "${text.length > 50 ? text.slice(0, 50) + '...' : text}" (ignored: not whitelisted)`, 'warning');
       return;
     }
+    logger.info(`Sender ${userId} (digits: ${senderDigits}) matched whitelist.`);
   }
 
   logger.info(`Incoming message from ${userId}: ${text}`);
@@ -533,12 +541,21 @@ async function handleIncomingMessage(message) {
     const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
     await sendHumanLikeReply(chat, message, userConfirm);
 
-    logToDashboard(`User +${contactDigits || userId} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
+    // Get contact name for admin notification
+    let contactLabel = `+${contactDigits}`;
+    try {
+      const contact = await message.getContact();
+      if (contact && (contact.pushname || contact.name)) {
+        contactLabel = `${contact.pushname || contact.name} (+${contactDigits})`;
+      }
+    } catch (_) {}
+
+    logToDashboard(`User ${contactLabel} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
 
     // Notify the admin if notification number is set
     if (botCfg.adminNotifyNumber) {
       const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
-      const adminAlert = `⚠️ *[Admin Alert]*\nUser *+${contactDigits}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
+      const adminAlert = `⚠️ *[Admin Alert]*\nUser *${contactLabel}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
       try {
         await client.sendMessage(adminJid, adminAlert);
         logger.info(`Notified admin at ${adminJid} about human request.`);
@@ -585,10 +602,19 @@ async function handleIncomingMessage(message) {
         // Mute AI automated replies for 10 minutes (10 / 60 hours) with type 'admin_handover'
         muteService.muteUser(userId, 10 / 60, 'admin_handover');
         
+        // Get contact name for admin notification
+        let contactLabel = `+${contactDigits}`;
+        try {
+          const contact = await message.getContact();
+          if (contact && (contact.pushname || contact.name)) {
+            contactLabel = `${contact.pushname || contact.name} (+${contactDigits})`;
+          }
+        } catch (_) {}
+
         // Send admin notification
         if (botCfg.adminNotifyNumber) {
           const adminJid = botCfg.adminNotifyNumber.includes('@c.us') ? botCfg.adminNotifyNumber : `${botCfg.adminNotifyNumber}@c.us`;
-          const adminAlert = `⚠️ *[System Alert]*\nUser *+${contactDigits}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
+          const adminAlert = `⚠️ *[System Alert]*\nUser *${contactLabel}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
           try {
             await client.sendMessage(adminJid, adminAlert);
             logger.info(`Notified admin at ${adminJid} about repeated questions.`);

@@ -113,6 +113,22 @@ async function putConfig(req, res) {
     }
   }
 
+  // Save multi-line captions to captions.txt in the ad images directory
+  if (typeof updates.schedulerAdCaption === 'string' && updates.schedulerAdCaption.includes('\n')) {
+    try {
+      const adService = require('../services/adService');
+      const adDir = updates.schedulerAdImageDir || updated.schedulerAdImageDir || adService.getAdImageDir();
+      if (!fs.existsSync(adDir)) {
+        fs.mkdirSync(adDir, { recursive: true });
+      }
+      const captionsFile = path.join(adDir, 'captions.txt');
+      fs.writeFileSync(captionsFile, updates.schedulerAdCaption, 'utf-8');
+      logger.info(`Saved per-image captions to ${captionsFile}`);
+    } catch (err) {
+      logger.warn(`Failed to save captions.txt: ${err.message}`);
+    }
+  }
+
   res.json(updated);
 }
 

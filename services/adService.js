@@ -85,8 +85,68 @@ function getRandomAdImage(dirPath) {
   };
 }
 
+/**
+ * Get ALL ad images in sorted order (filename-sorted, timestamps maintain insertion order).
+ * Returns an array of { filePath, mimeType, filename } objects, or empty array.
+ */
+function getAllAdImagesInOrder(dirPath) {
+  const images = listAdImages(dirPath);
+  if (images.length === 0) return [];
+
+  // Sort by filename (timestamps maintain insertion order)
+  images.sort((a, b) => path.basename(a).localeCompare(path.basename(b)));
+
+  const mimeMap = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+  };
+
+  return images.map(filePath => {
+    const ext = path.extname(filePath).toLowerCase();
+    return {
+      filePath,
+      mimeType: mimeMap[ext] || 'image/jpeg',
+      filename: path.basename(filePath),
+    };
+  });
+}
+
+/**
+ * Read captions for images. Supports two formats:
+ * 1. A captions.txt in the ad directory: one caption per line, matching image order
+ * 2. A single adCaption string from config (applied to all images)
+ * Returns an array of caption strings matching image order.
+ */
+function getCaptionsForImages(dirPath, imageCount, fallbackCaption = '') {
+  const dir = dirPath || getAdImageDir();
+  const captionsFile = path.join(dir, 'captions.txt');
+
+  try {
+    if (fs.existsSync(captionsFile)) {
+      const raw = fs.readFileSync(captionsFile, 'utf-8');
+      const lines = raw.split('\n').map(l => l.trim());
+      // Pad with empty strings if fewer captions than images
+      const captions = [];
+      for (let i = 0; i < imageCount; i++) {
+        captions.push(lines[i] || '');
+      }
+      return captions;
+    }
+  } catch (err) {
+    logger.warn(`Failed to read captions.txt: ${err.message}`);
+  }
+
+  // Fallback: use the single caption from config for all images
+  return Array(imageCount).fill(fallbackCaption);
+}
+
 module.exports = {
   getRandomAdImage,
+  getAllAdImagesInOrder,
+  getCaptionsForImages,
   listAdImages,
   getAdImageDir,
 };
