@@ -775,29 +775,55 @@ async function sendMessage(to, text) {
   if (!client || !isReady) {
     throw new Error('WhatsApp client is not ready yet.');
   }
-  const chatId = formatJid(to);
-  const isNewsletter = chatId.endsWith('@newsletter');
-  const options = isNewsletter ? { sendSeen: false } : {};
-  const sentMsg = await client.sendMessage(chatId, text, options);
-  if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
-    rememberBotMessageId(sentMsg.id._serialized);
+  try {
+    const chatId = formatJid(to);
+    const isNewsletter = chatId.endsWith('@newsletter');
+    const options = isNewsletter ? { sendSeen: false } : {};
+    const sentMsg = await client.sendMessage(chatId, text, options);
+    if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
+      rememberBotMessageId(sentMsg.id._serialized);
+    }
+    return sentMsg;
+  } catch (err) {
+    logger.error(`sendMessage failed: ${err.message}`);
+    if (
+      err.message.includes('detached Frame') ||
+      err.message.includes('Execution context was destroyed') ||
+      err.message.includes('Session closed') ||
+      err.message.includes('Target closed')
+    ) {
+      await destroyAndRecreateClient(err.message);
+    }
+    throw err;
   }
-  return sentMsg;
 }
 
 async function sendMediaMessage(to, filePath, caption = '') {
   if (!client || !isReady) {
     throw new Error('WhatsApp client is not ready yet.');
   }
-  const chatId = formatJid(to);
-  const media = MessageMedia.fromFilePath(filePath);
-  const isNewsletter = chatId.endsWith('@newsletter');
-  const options = isNewsletter ? { caption, sendSeen: false } : (caption ? { caption } : {});
-  const sentMsg = await client.sendMessage(chatId, media, options);
-  if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
-    rememberBotMessageId(sentMsg.id._serialized);
+  try {
+    const chatId = formatJid(to);
+    const media = MessageMedia.fromFilePath(filePath);
+    const isNewsletter = chatId.endsWith('@newsletter');
+    const options = isNewsletter ? { caption, sendSeen: false } : (caption ? { caption } : {});
+    const sentMsg = await client.sendMessage(chatId, media, options);
+    if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
+      rememberBotMessageId(sentMsg.id._serialized);
+    }
+    return sentMsg;
+  } catch (err) {
+    logger.error(`sendMediaMessage failed: ${err.message}`);
+    if (
+      err.message.includes('detached Frame') ||
+      err.message.includes('Execution context was destroyed') ||
+      err.message.includes('Session closed') ||
+      err.message.includes('Target closed')
+    ) {
+      await destroyAndRecreateClient(err.message);
+    }
+    throw err;
   }
-  return sentMsg;
 }
 
 function getClient() {
