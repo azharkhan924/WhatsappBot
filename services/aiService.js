@@ -141,9 +141,72 @@ async function generateReply(userId, userMessage, history) {
   return { reply: FALLBACK_REPLY, latencyMs, failed: true };
 }
 
+async function tryOneShotProvider(providerInstance, systemPrompt, userMessage, maxTokens) {
+  const totalAttempts = config.ai.maxRetries + 1;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
+    try {
+      const reply = await providerInstance.generateReply({
+        systemPrompt,
+        history: [],
+        userMessage,
+        maxTokens,
+      });
+      return { reply, failed: false };
+    } catch (err) {
+      lastError = err;
+      logger.error(
+        `One-shot provider (${providerInstance.getName()}) attempt ${attempt}/${totalAttempts} failed: ${err.message}`
+      );
+
+      // 429 = rate limited. Don't waste time retrying — jump to fallback immediately.
+      if (isRateLimitError(err)) {
+        logger.warn(`One-shot rate limit (429) on ${providerInstance.getName()}. Skipping provider.`);
+        return { reply: null, failed: true, lastError: err, rateLimited: true };
+      }
+
+      if (attempt < totalAttempts) {
+        await sleep(500 * attempt);
+      }
+    }
+  }
+
+  return { reply: null, failed: true, lastError, rateLimited: false };
+}
+
+/**
+ * Generic single prompt completion with fallbacks and retry logic.
+ * Useful for one-off generations like bulk templates, quote/caption prompts.
+ * Automatically handles API key rotation/fallbacks.
+ */
+async function generateOneShot({ systemPrompt, userMessage, maxTokens }) {
+  const startTime = Date.now();
+
+  // Try primary provider first
+  const primaryResult = await tryOneShotProvider(primaryProvider, systemPrompt, userMessage, maxTokens);
+  if (!primaryResult.failed) {
+    logger.info(`One-shot AI generated via primary ${primaryProvider.getName()} in ${Date.now() - startTime}ms`);
+    return primaryResult.reply;
+  }
+
+  // Try fallbacks in order (even if not strictly a 429, retry on other failures)
+  for (const fb of fallbackProviders) {
+    logger.info(`One-shot AI trying fallback: ${fb.getName()}`);
+    const fbResult = await tryOneShotProvider(fb, systemPrompt, userMessage, maxTokens);
+    if (!fbResult.failed) {
+      logger.info(`One-shot AI generated via fallback ${fb.getName()} in ${Date.now() - startTime}ms`);
+      return fbResult.reply;
+    }
+  }
+
+  throw primaryResult.lastError || new Error('All AI providers failed to generate response');
+}
+
 module.exports = {
   generateReply,
   loadSystemPrompt,
   FALLBACK_REPLY,
+  generateOneShot,
 };
 

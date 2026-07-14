@@ -189,13 +189,15 @@ RULES:
 async function generateTemplate(purpose, columns, sampleRow) {
   const prompt = buildTemplatePrompt(purpose, columns, sampleRow);
 
-  // Use the primary AI provider directly for a single one-shot call
-  const primaryProvider = require('../providers');
+  const aiService = require('./aiService');
+  const botConfigService = require('./botConfigService');
+
+  // Prepend main system prompt to inject business context & persona
+  const systemPrompt = `System Context / Business Info:\n${botConfigService.getSystemPrompt()}\n\nInstructions:\nYou are a WhatsApp message template generator. Output ONLY the message template, nothing else.`;
   
   try {
-    const template = await primaryProvider.generateReply({
-      systemPrompt: 'You are a WhatsApp message template generator. Output ONLY the message template, nothing else.',
-      history: [],
+    const template = await aiService.generateOneShot({
+      systemPrompt,
       userMessage: prompt,
       maxTokens: 2048, // Request higher limit to avoid truncation due to thinking tokens
     });

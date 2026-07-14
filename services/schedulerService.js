@@ -87,6 +87,10 @@ function getSchedulerConfig() {
     targetChannels: botCfg.schedulerTargetChannels || envCfg.targetChannels,
     adImageDir: botCfg.schedulerAdImageDir || envCfg.adImageDir,
     adCaption: botCfg.schedulerAdCaption || '',
+    quoteMode: botCfg.schedulerQuoteMode || 'local',
+    quotePrompt: botCfg.schedulerQuotePrompt || '',
+    captionMode: botCfg.schedulerCaptionMode || 'static',
+    captionPrompt: botCfg.schedulerCaptionPrompt || '',
   };
 }
 
@@ -152,24 +156,72 @@ async function sendScheduledMessages() {
   const details = [];
   let overallStatus = 'success';
 
-  // 1. Fetch daily quote
-  let quote;
-  try {
-    quote = await quoteService.getQuoteOfTheDay();
-  } catch (err) {
-    logger.error(`Failed to fetch daily quote: ${err.message}`);
-    quote = { text: 'Every day is a new beginning.', author: 'Unknown' };
+  const aiService = require('./aiService');
+
+  // 1. Fetch or generate quote/message
+  let quoteMessage = '';
+  if (schedulerCfg.quoteMode === 'ai_prompt' && schedulerCfg.quotePrompt) {
+    try {
+      logger.info('Scheduler: Quote mode is AI Prompt. Generating with main system prompt context...');
+      const systemPrompt = `System Context / Business Info:\n${botConfigService.getSystemPrompt()}\n\nInstructions:\nYou are a copywriter. Write a daily inspiring message or quote as requested. Do NOT include greetings, intro, notes, explanations, or quotes. Output ONLY the generated message/quote text itself.`;
+      
+      quoteMessage = await aiService.generateOneShot({
+        systemPrompt,
+        userMessage: `Based on the system context, write a message or quote matching this request: ${schedulerCfg.quotePrompt}`,
+        maxTokens: 2048, // Support long messages and avoid thinking truncations
+      });
+      logger.info('Scheduler: AI quote message successfully generated.');
+    } catch (err) {
+      logger.error(`Scheduler: AI quote generation failed (${err.message}). Falling back to local quote service.`);
+      // Fallback to quoteService
+      try {
+        const quote = await quoteService.getQuoteOfTheDay();
+        quoteMessage = formatQuoteMessage(quote);
+      } catch (fallbackErr) {
+        quoteMessage = 'Every day is a new beginning.';
+      }
+    }
+  } else {
+    // Local / quoteService mode
+    try {
+      const quote = await quoteService.getQuoteOfTheDay();
+      quoteMessage = formatQuoteMessage(quote);
+    } catch (err) {
+      logger.error(`Failed to fetch daily quote: ${err.message}`);
+      quoteMessage = 'Every day is a new beginning.';
+    }
   }
 
-  const quoteMessage = formatQuoteMessage(quote);
-
-  // 2. Get all ad images in insertion order with individual captions
+  // 2. Get all ad images in insertion order
   const allImages = adService.getAllAdImagesInOrder(schedulerCfg.adImageDir);
-  const captions = allImages.length > 0
-    ? adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '')
-    : [];
+  
+  // 3. Resolve captions (static vs AI generated)
+  let captions = [];
+  if (allImages.length > 0) {
+    if (schedulerCfg.captionMode === 'ai_prompt' && schedulerCfg.captionPrompt) {
+      try {
+        logger.info('Scheduler: Caption mode is AI Prompt. Generating with main system prompt context...');
+        const systemPrompt = `System Context / Business Info:\n${botConfigService.getSystemPrompt()}\n\nInstructions:\nYou are a marketing assistant. Write a short, highly engaging caption for the daily ad image based on the request. Do NOT write greetings, notes, quotes, or explanations. Output ONLY the caption itself.`;
+        
+        const generatedCaption = await aiService.generateOneShot({
+          systemPrompt,
+          userMessage: `Based on the system context, write an ad caption matching this request: ${schedulerCfg.captionPrompt}`,
+          maxTokens: 2048, // Support long captions and avoid thinking truncations
+        });
+        
+        captions = Array(allImages.length).fill(generatedCaption.trim());
+        logger.info('Scheduler: AI ad caption successfully generated.');
+      } catch (err) {
+        logger.error(`Scheduler: AI ad caption generation failed (${err.message}). Falling back to static caption.`);
+        captions = adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '');
+      }
+    } else {
+      // Standard static mode
+      captions = adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '');
+    }
+  }
 
-  // 3. Resolve all targets (groups + channels)
+  // 4. Resolve all targets (groups + channels)
   const groupTargets = await resolveTargets(schedulerCfg.targetGroups, 'group');
   const channelTargets = await resolveTargets(schedulerCfg.targetChannels, 'channel');
   const allTargets = [...groupTargets, ...channelTargets];
@@ -182,7 +234,7 @@ async function sendScheduledMessages() {
     return { status: 'no_targets', details: lastRunDetails };
   }
 
-  // 4. Send to each target
+  // 5. Send to each target
   for (const target of allTargets) {
     const targetDetail = { target: target.name || target.id, status: 'pending' };
 
@@ -271,6 +323,10 @@ function getStatus() {
     targetChannels: schedulerCfg.targetChannels,
     adImageDir: schedulerCfg.adImageDir,
     adCaption: schedulerCfg.adCaption,
+    quoteMode: schedulerCfg.quoteMode,
+    quotePrompt: schedulerCfg.quotePrompt,
+    captionMode: schedulerCfg.captionMode,
+    captionPrompt: schedulerCfg.captionPrompt,
     isRunning: cronJob !== null,
     lastRunAt,
     lastRunStatus,

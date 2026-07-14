@@ -25,6 +25,10 @@ const defaultConfig = {
   schedulerTargetChannels: [],
   schedulerAdImageDir: '',
   schedulerAdCaption: '',
+  schedulerQuoteMode: 'local', // 'local' or 'ai_prompt'
+  schedulerQuotePrompt: '',
+  schedulerCaptionMode: 'static', // 'static' or 'ai_prompt'
+  schedulerCaptionPrompt: '',
   // Admin alert & AI mute settings
   adminNotifyNumber: '',
   autoPauseDurationHours: 12,
@@ -138,6 +142,18 @@ function updateConfig(updates) {
   }
   if (typeof updates.schedulerAdCaption === 'string') {
     currentConfig.schedulerAdCaption = updates.schedulerAdCaption;
+  }
+  if (typeof updates.schedulerQuoteMode === 'string') {
+    currentConfig.schedulerQuoteMode = updates.schedulerQuoteMode;
+  }
+  if (typeof updates.schedulerQuotePrompt === 'string') {
+    currentConfig.schedulerQuotePrompt = updates.schedulerQuotePrompt;
+  }
+  if (typeof updates.schedulerCaptionMode === 'string') {
+    currentConfig.schedulerCaptionMode = updates.schedulerCaptionMode;
+  }
+  if (typeof updates.schedulerCaptionPrompt === 'string') {
+    currentConfig.schedulerCaptionPrompt = updates.schedulerCaptionPrompt;
   }
   if (typeof updates.adminNotifyNumber === 'string') {
     const trimmed = updates.adminNotifyNumber.trim();

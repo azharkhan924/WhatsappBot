@@ -1291,6 +1291,28 @@ async function loadSchedulerStatus() {
     // Ad caption
     if ($('scheduler-ad-caption')) $('scheduler-ad-caption').value = status.adCaption || '';
 
+    // Ad caption mode & prompt
+    const captionMode = status.captionMode || 'static';
+    if ($('scheduler-caption-mode')) $('scheduler-caption-mode').value = captionMode;
+    if ($('scheduler-caption-prompt')) $('scheduler-caption-prompt').value = status.captionPrompt || '';
+    if ($('scheduler-caption-prompt-box')) {
+      $('scheduler-caption-prompt-box').style.display = captionMode === 'ai_prompt' ? 'block' : 'none';
+    }
+    if ($('scheduler-static-caption-box')) {
+      $('scheduler-static-caption-box').style.display = captionMode === 'static' ? 'block' : 'none';
+    }
+
+    // Quote mode & prompt
+    const quoteMode = status.quoteMode || 'local';
+    if ($('scheduler-quote-mode')) $('scheduler-quote-mode').value = quoteMode;
+    if ($('scheduler-quote-prompt')) $('scheduler-quote-prompt').value = status.quotePrompt || '';
+    if ($('scheduler-quote-prompt-box')) {
+      $('scheduler-quote-prompt-box').style.display = quoteMode === 'ai_prompt' ? 'block' : 'none';
+    }
+    if ($('scheduler-static-quotes-box')) {
+      $('scheduler-static-quotes-box').style.display = quoteMode === 'local' ? 'block' : 'none';
+    }
+
     // Ad count
     if ($('scheduler-ad-count')) {
       $('scheduler-ad-count').textContent = status.availableAdImages !== undefined ? status.availableAdImages : '—';
@@ -1321,6 +1343,27 @@ async function loadSchedulerStatus() {
   }
 }
 
+// Bind mode changes
+$('scheduler-caption-mode')?.addEventListener('change', (e) => {
+  const mode = e.target.value;
+  if ($('scheduler-caption-prompt-box')) {
+    $('scheduler-caption-prompt-box').style.display = mode === 'ai_prompt' ? 'block' : 'none';
+  }
+  if ($('scheduler-static-caption-box')) {
+    $('scheduler-static-caption-box').style.display = mode === 'static' ? 'block' : 'none';
+  }
+});
+
+$('scheduler-quote-mode')?.addEventListener('change', (e) => {
+  const mode = e.target.value;
+  if ($('scheduler-quote-prompt-box')) {
+    $('scheduler-quote-prompt-box').style.display = mode === 'ai_prompt' ? 'block' : 'none';
+  }
+  if ($('scheduler-static-quotes-box')) {
+    $('scheduler-static-quotes-box').style.display = mode === 'local' ? 'block' : 'none';
+  }
+});
+
 // Scheduler toggle
 $('toggle-scheduler')?.addEventListener('change', async (e) => {
   const schedulerEnabled = e.target.checked;
@@ -1348,6 +1391,10 @@ $('scheduler-save-btn')?.addEventListener('click', async () => {
     schedulerTargetChannels: schedulerChannels,
     schedulerAdImageDir: $('scheduler-ad-dir')?.value.trim() || '',
     schedulerAdCaption: $('scheduler-ad-caption')?.value.trim() || '',
+    schedulerQuoteMode: $('scheduler-quote-mode')?.value || 'local',
+    schedulerQuotePrompt: $('scheduler-quote-prompt')?.value.trim() || '',
+    schedulerCaptionMode: $('scheduler-caption-mode')?.value || 'static',
+    schedulerCaptionPrompt: $('scheduler-caption-prompt')?.value.trim() || '',
   };
 
   try {
