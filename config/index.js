@@ -73,6 +73,10 @@ const config = {
       apiKey: process.env.NVIDIA_API_KEY || '',
       model: process.env.NVIDIA_MODEL || 'meta/llama-3.1-70b-instruct',
     },
+    cloudflare: {
+      url: process.env.CLOUDFLARE_IMAGE_GEN_URL || '',
+      apiKey: process.env.CLOUDFLARE_IMAGE_GEN_API_KEY || '',
+    },
   },
 
   memory: {

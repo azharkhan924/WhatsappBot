@@ -78,12 +78,57 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
     caption = commonPrompt;
   }
 
-  // 2. Generate Image using Gemini's dedicated image model via generateContent REST endpoint
+  // 2. Generate Image
   let imagePrompt = `Theme: ${systemContext.substring(0, 300)}... Prompt: ${commonPrompt}`;
   if (imageHint) {
     imagePrompt += ` Style instructions: ${imageHint}`;
   }
 
+  // Check if Cloudflare Worker is configured
+  const cloudflareUrl = config.ai.cloudflare ? config.ai.cloudflare.url : null;
+  const cloudflareApiKey = config.ai.cloudflare ? config.ai.cloudflare.apiKey : null;
+
+  if (cloudflareUrl) {
+    try {
+      logger.info(`ImageGen: Using Cloudflare Workers AI endpoint: ${cloudflareUrl}`);
+      const headers = { 'Content-Type': 'application/json' };
+      if (cloudflareApiKey) {
+        headers['Authorization'] = `Bearer ${cloudflareApiKey}`;
+      }
+
+      const response = await axios.post(
+        cloudflareUrl,
+        { prompt: imagePrompt },
+        {
+          headers,
+          responseType: 'arraybuffer', // Get raw binary bytes from Cloudflare
+          timeout: 45000,
+        }
+      );
+
+      const imageBuffer = Buffer.from(response.data);
+      const imageMimeType = 'image/jpeg';
+      const ext = '.jpg';
+
+      // Save image to temp file
+      const filename = `ai_generated_${Date.now()}${ext}`;
+      const filePath = path.join(TEMP_DIR, filename);
+      fs.writeFileSync(filePath, imageBuffer);
+
+      logger.info(`ImageGen: Cloudflare successfully generated image (${(imageBuffer.length / 1024).toFixed(1)}KB)`);
+
+      return {
+        filePath,
+        caption: caption.trim(),
+        mimeType: imageMimeType,
+        filename,
+      };
+    } catch (err) {
+      logger.error(`ImageGen: Cloudflare Workers AI image generation failed: ${err.message}. Falling back to Gemini...`);
+    }
+  }
+
+  // 3. Fallback to Gemini's dedicated image model via generateContent REST endpoint
   const payload = {
     contents: [
       {
