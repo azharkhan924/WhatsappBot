@@ -169,12 +169,17 @@ ${samplePairs}
 
 RULES:
 1. You MUST include and integrate ALL relevant data fields (placeholders) from the list above in the message, especially fields related to marks, scores, subjects, father's/parent's name, roll numbers, or status. Do NOT omit any information fields.
-2. Format the message beautifully using WhatsApp markup:
+2. The message MUST be a complete, fully-written notification. Do NOT write a lazy 2 or 3 line summary. Provide:
+   - A warm, polite introductory paragraph addressing the recipient (e.g., greeting parent/student, wishing them well, introducing the update context).
+   - A structured body section displaying the data fields clearly (marks, scores, roll number, etc.) on separate lines with clean layout.
+   - A polite closing paragraph (e.g., congratulations/feedback, invitation to ask questions, next steps).
+   - A proper sign-off placeholder (e.g., "Best regards,\n[School/Organization Name]").
+3. Format the message beautifully using WhatsApp markup:
    - Use *bold* for headers, labels, and key data fields (e.g., *Student Name:* {{name}}, *Father Name:* {{father_name}}).
    - Use bullet points or separate lines for listing subject marks/scores to make it clean and readable.
-3. Keep the tone professional, polite, and warm.
-4. Do NOT use generic greetings like "Dear Sir/Madam" if a name placeholder exists; greet using the placeholder (e.g., "Hello {{name}}").
-5. Output ONLY the raw message template text. Do NOT wrap it in markdown code blocks, do NOT write quotes, and do NOT include any introduction, notes, explanation, or conversational filler. Output only the template itself.`;
+4. Keep the tone professional, polite, and warm.
+5. Do NOT use generic greetings like "Dear Sir/Madam" if a name placeholder exists; greet using the placeholder (e.g., "Hello {{name}}").
+6. Output ONLY the raw message template text. Do NOT wrap it in markdown code blocks, do NOT write quotes, and do NOT include any introduction, notes, explanation, or conversational filler. Output only the template itself.`;
 }
 
 /**
