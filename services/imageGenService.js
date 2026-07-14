@@ -98,7 +98,10 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
 
       const response = await axios.post(
         cloudflareUrl,
-        { prompt: imagePrompt },
+        { 
+          prompt: imagePrompt,
+          model: '@cf/black-forest-labs/flux-1-schnell'
+        },
         {
           headers,
           responseType: 'arraybuffer', // Get raw binary bytes from Cloudflare
