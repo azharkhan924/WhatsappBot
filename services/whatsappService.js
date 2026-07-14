@@ -417,15 +417,27 @@ function registerEventHandlers() {
       if (client.pupPage) {
         await client.pupPage.evaluate(() => {
           try {
-            if (window.Store && window.Store.Msg && !window.Store.Msg.prototype.avParams) {
-              window.Store.Msg.prototype.avParams = function() {
-                return null;
-              };
-              console.log('Successfully monkey-patched window.Store.Msg.prototype.avParams on ready');
+            // 1. Patch WAWebCollections Msg model Class
+            const collections = window.require('WAWebCollections');
+            if (collections && collections.Msg && collections.Msg.modelClass) {
+              const proto = collections.Msg.modelClass.prototype;
+              if (!proto.avParams) {
+                proto.avParams = function() { return null; };
+                console.log('Successfully monkey-patched WAWebCollections Msg prototype on ready');
+              }
             }
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
+
+          try {
+            // 2. Patch window.Store Msg Class
+            if (window.Store && window.Store.Msg) {
+              const proto = window.Store.Msg.prototype;
+              if (!proto.avParams) {
+                proto.avParams = function() { return null; };
+                console.log('Successfully monkey-patched window.Store.Msg.prototype.avParams on ready');
+              }
+            }
+          } catch (e) {}
         });
       }
     } catch (err) {
@@ -834,15 +846,27 @@ async function sendMediaMessage(to, filePath, caption = '') {
       try {
         await client.pupPage.evaluate(() => {
           try {
-            if (window.Store && window.Store.Msg && !window.Store.Msg.prototype.avParams) {
-              window.Store.Msg.prototype.avParams = function() {
-                return null;
-              };
-              console.log('Successfully monkey-patched window.Store.Msg.prototype.avParams before send');
+            // 1. Patch WAWebCollections Msg model Class
+            const collections = window.require('WAWebCollections');
+            if (collections && collections.Msg && collections.Msg.modelClass) {
+              const proto = collections.Msg.modelClass.prototype;
+              if (!proto.avParams) {
+                proto.avParams = function() { return null; };
+                console.log('Successfully monkey-patched WAWebCollections Msg prototype before send');
+              }
             }
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
+
+          try {
+            // 2. Patch window.Store Msg Class
+            if (window.Store && window.Store.Msg) {
+              const proto = window.Store.Msg.prototype;
+              if (!proto.avParams) {
+                proto.avParams = function() { return null; };
+                console.log('Successfully monkey-patched window.Store.Msg.prototype.avParams before send');
+              }
+            }
+          } catch (e) {}
         });
       } catch (err) {
         logger.warn(`Failed to apply avParams monkey patch before send: ${err.message}`);
