@@ -4,6 +4,9 @@
 
 FROM node:22-bullseye-slim
 
+# Configure apt retries to handle transient network errors
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
+
 # Install Chromium and required system libraries for Puppeteer.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
