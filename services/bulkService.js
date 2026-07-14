@@ -158,21 +158,23 @@ function buildTemplatePrompt(purpose, columns, sampleRow) {
   const fieldList = columns.map(c => `{{${c}}}`).join(', ');
   const samplePairs = columns.map(c => `${c}: "${sampleRow[c] || ''}"`).join(', ');
 
-  return `You are a WhatsApp message template generator. Generate exactly ONE professional WhatsApp message template.
+  return `You are a WhatsApp message template generator. Generate exactly ONE complete, detailed, and personalized WhatsApp message template.
 
 PURPOSE: ${purpose}
 
 AVAILABLE PLACEHOLDERS: ${fieldList}
 
-SAMPLE DATA: ${samplePairs}
+SAMPLE DATA OF FIRST RECIPIENT:
+${samplePairs}
 
 RULES:
-1. Use {{field_name}} placeholders for personalized data (e.g., {{name}}, {{phone}})
-2. Keep the message concise and professional
-3. Use WhatsApp formatting: *bold*, _italic_ where appropriate
-4. Do NOT include greetings like "Dear Sir/Madam" — use the name placeholder instead
-5. Output ONLY the message template text, nothing else — no explanations, no code blocks, no quotes
-6. Make it feel personal and warm, suitable for WhatsApp`;
+1. You MUST include and integrate ALL relevant data fields (placeholders) from the list above in the message, especially fields related to marks, scores, subjects, father's/parent's name, roll numbers, or status. Do NOT omit any information fields.
+2. Format the message beautifully using WhatsApp markup:
+   - Use *bold* for headers, labels, and key data fields (e.g., *Student Name:* {{name}}, *Father Name:* {{father_name}}).
+   - Use bullet points or separate lines for listing subject marks/scores to make it clean and readable.
+3. Keep the tone professional, polite, and warm.
+4. Do NOT use generic greetings like "Dear Sir/Madam" if a name placeholder exists; greet using the placeholder (e.g., "Hello {{name}}").
+5. Output ONLY the raw message template text. Do NOT wrap it in markdown code blocks, do NOT write quotes, and do NOT include any introduction, notes, explanation, or conversational filler. Output only the template itself.`;
 }
 
 /**
