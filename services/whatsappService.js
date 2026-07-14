@@ -405,12 +405,33 @@ function registerEventHandlers() {
     await destroyAndRecreateClient(`Auth failure: ${msg}`);
   });
 
-  client.on('ready', () => {
+  client.on('ready', async () => {
     isReady = true;
     lastQr = null;
     lastQrDataUrl = null;
     logger.info('WhatsApp client is Ready.');
     logToDashboard('WhatsApp client is ready and connected.', 'success');
+    
+    // Monkey patch the msg.avParams method on ready to prevent media-sending errors
+    try {
+      if (client.pupPage) {
+        await client.pupPage.evaluate(() => {
+          try {
+            if (window.Store && window.Store.Msg && !window.Store.Msg.prototype.avParams) {
+              window.Store.Msg.prototype.avParams = function() {
+                return null;
+              };
+              console.log('Successfully monkey-patched window.Store.Msg.prototype.avParams on ready');
+            }
+          } catch (e) {
+            // ignore
+          }
+        });
+      }
+    } catch (err) {
+      logger.warn(`Failed to apply avParams monkey patch on ready: ${err.message}`);
+    }
+
     startHealthCheck();
     broadcastState();
   });
@@ -807,6 +828,27 @@ async function sendMediaMessage(to, filePath, caption = '') {
     const media = MessageMedia.fromFilePath(filePath);
     const isNewsletter = chatId.endsWith('@newsletter');
     const options = isNewsletter ? { caption, sendSeen: false } : (caption ? { caption } : {});
+
+    // Ensure the msg.avParams monkey patch is active right before sending media
+    if (client.pupPage) {
+      try {
+        await client.pupPage.evaluate(() => {
+          try {
+            if (window.Store && window.Store.Msg && !window.Store.Msg.prototype.avParams) {
+              window.Store.Msg.prototype.avParams = function() {
+                return null;
+              };
+              console.log('Successfully monkey-patched window.Store.Msg.prototype.avParams before send');
+            }
+          } catch (e) {
+            // ignore
+          }
+        });
+      } catch (err) {
+        logger.warn(`Failed to apply avParams monkey patch before send: ${err.message}`);
+      }
+    }
+
     const sentMsg = await client.sendMessage(chatId, media, options);
     if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
       rememberBotMessageId(sentMsg.id._serialized);
