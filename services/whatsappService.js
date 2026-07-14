@@ -843,25 +843,57 @@ async function findChatByName(name) {
 }
 
 async function getAvailableChats() {
-  if (!client || !isReady) return { groups: [], channels: [], totalChats: 0 };
+  if (!client || !isReady) return { groups: [], channels: [], directChats: [], totalChats: 0 };
   try {
     const chats = await client.getChats();
     const groups = [];
     const channels = [];
+    const directChats = [];
     for (const chat of chats) {
       if (chat.isGroup || (chat.id && chat.id.server === 'g.us')) {
         groups.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Group' });
       } else if (chat.isChannel || (chat.id && chat.id.server === 'newsletter') || (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter'))) {
         channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
+      } else if (chat.id && chat.id.server === 'c.us') {
+        directChats.push({ id: chat.id._serialized, name: chat.name || chat.id.user || 'Unnamed Contact' });
       }
     }
     const raw = chats.map(c => ({ name: c.name || 'Unnamed', id: c.id ? c.id._serialized : 'unknown' }));
-    logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups and ${channels.length} channels.`);
-    return { groups, channels, totalChats: chats.length, raw };
+    logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups, ${channels.length} channels, and ${directChats.length} direct chats.`);
+    return { groups, channels, directChats, totalChats: chats.length, raw };
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
-    return { groups: [], channels: [] };
+    return { groups: [], channels: [], directChats: [] };
   }
+}
+
+async function fetchChatMessages(chatId, limit = 80) {
+  if (!client || !isReady) {
+    throw new Error('WhatsApp client is not ready.');
+  }
+  const chat = await client.getChatById(chatId);
+  if (!chat) {
+    throw new Error(`Chat with ID ${chatId} not found.`);
+  }
+  const messages = await chat.fetchMessages({ limit });
+  return messages.map((m) => {
+    // Determine a clean display name for the sender
+    let senderName = 'Contact';
+    if (m.fromMe) {
+      senderName = 'Me';
+    } else if (m._data && m._data.notifyName) {
+      senderName = m._data.notifyName;
+    } else if (chat.name) {
+      senderName = chat.name;
+    }
+
+    return {
+      body: m.body || '',
+      fromMe: !!m.fromMe,
+      senderName,
+      timestamp: m.timestamp,
+    };
+  });
 }
 
 async function getChannelIdFromLink(inviteLink) {
@@ -1002,4 +1034,5 @@ module.exports = {
   requestPairingCode,
   hardReset,
   formatJid,
+  fetchChatMessages,
 };

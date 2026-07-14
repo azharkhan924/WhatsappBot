@@ -1475,6 +1475,41 @@
             </div>
           </div>
 
+          <!-- Style Cloner Card -->
+          <div class="card">
+            <div class="card-title">✨ Clone Writing Style from WhatsApp Chat</div>
+            <div class="toggle-sub" style="margin-bottom:12px;">Fetch messages from a WhatsApp chat, analyze linguistic traits (slang, Hinglish, emojis, punctuation), and generate rules to make the AI talk exactly in that style.</div>
+            
+            <div class="section-label">💬 Select WhatsApp Chat</div>
+            <select id="cloner-chat-select" style="margin-bottom:12px;">
+              <option value="">-- Load chats first --</option>
+            </select>
+
+            <div class="section-label">👤 Target Style to Mimic</div>
+            <div style="display:flex; gap:16px; margin-bottom:16px; align-items:center;">
+              <label style="display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer;">
+                <input type="radio" name="cloner-target-role" value="me" checked style="width:auto; cursor:pointer;">
+                My Style (Owner)
+              </label>
+              <label style="display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer;">
+                <input type="radio" name="cloner-target-role" value="contact" style="width:auto; cursor:pointer;">
+                Contact's Style
+              </label>
+            </div>
+
+            <button class="btn btn-primary" id="cloner-generate-btn" style="width:100%; margin-bottom:16px;">🤖 Analyze & Generate Style Prompt</button>
+
+            <div id="cloner-status-log" style="display:none; font-size:12px; color:var(--text-muted); margin-bottom:12px;"></div>
+
+            <!-- Preview generated prompt -->
+            <div id="cloner-preview-box" style="display:none;">
+              <div class="section-label">📱 Generated Style Prompt Block</div>
+              <textarea id="cloner-prompt-preview" readonly style="min-height:120px; font-family:monospace; font-size:12px; line-height:1.4; background:var(--bg-input); border-color:var(--border-light); margin-bottom:12px;" placeholder="Generated prompt rules will appear here..."></textarea>
+              
+              <button class="btn btn-send" id="cloner-append-btn" style="width:100%; background:var(--wa-green); border-color:var(--wa-green); color:white;">📥 Append to System Prompt</button>
+            </div>
+          </div>
+
           <div class="card">
             <div class="card-title">Holding Reply</div>
             <div class="toggle-sub" style="margin-bottom:10px;">Auto-reply when someone asks about meetings, money, or anything requiring personal confirmation.</div>

@@ -86,4 +86,7 @@ router.post(['/api/bulk/send', '/bulk/send'], dashboardAuth, controller.postBulk
 router.get(['/api/bulk/progress', '/bulk/progress'], dashboardAuth, controller.getBulkProgress);
 router.post(['/api/bulk/cancel', '/bulk/cancel'], dashboardAuth, controller.postBulkCancel);
 
+// ── Writing Style Cloning routes ──
+router.post(['/api/prompt/clone-style', '/prompt/clone-style'], dashboardAuth, controller.postCloneChatStyle);
+
 module.exports = router;

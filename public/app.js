@@ -1117,7 +1117,6 @@ async function loadAvailableChats(showToast = false) {
     const data = await res.json();
     if (data.success) {
       const groupSelect = $('scheduler-group-input');
-      const channelSelect = $('scheduler-channel-input');
       if (groupSelect && data.groups) {
         groupSelect.innerHTML = '<option value="">-- Select a group --</option>';
         data.groups.forEach(g => {
@@ -1127,15 +1126,44 @@ async function loadAvailableChats(showToast = false) {
           groupSelect.appendChild(opt);
         });
       }
-      // Channel select removed by user request (using text input instead)
+
+      // Populate Cloner selector dropdown
+      const clonerSelect = $('cloner-chat-select');
+      if (clonerSelect) {
+        clonerSelect.innerHTML = '<option value="">-- Select a chat (Contact or Group) --</option>';
+        
+        // Add direct contacts
+        if (data.directChats && data.directChats.length > 0) {
+          const optGroup = document.createElement('optgroup');
+          optGroup.label = '💬 Direct Contacts';
+          data.directChats.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${c.name} (${c.id.split('@')[0]})`;
+            optGroup.appendChild(opt);
+          });
+          clonerSelect.appendChild(optGroup);
+        }
+
+        // Add groups
+        if (data.groups && data.groups.length > 0) {
+          const optGroup = document.createElement('optgroup');
+          optGroup.label = '👥 Groups';
+          data.groups.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = g.name;
+            optGroup.appendChild(opt);
+          });
+          clonerSelect.appendChild(optGroup);
+        }
+      }
       
       if (showToast) {
         if (data.totalChats === 0) {
           toast('WhatsApp is still syncing your chats! Please wait a minute and try again.', 'warning');
-        } else if (data.groups.length === 0 && data.channels.length === 0) {
-          toast(`Synced ${data.totalChats} chats, but found no groups or channels.`, 'warning');
         } else {
-          toast(`Refreshed! Found ${data.groups.length} groups and ${data.channels.length} channels.`, 'success');
+          toast(`Refreshed chats! Found ${data.directChats?.length || 0} contacts and ${data.groups.length} groups.`, 'success');
         }
       }
     }
@@ -1466,6 +1494,11 @@ function switchTab(tabName) {
 
   // Update header title
   if ($('main-title')) $('main-title').textContent = TAB_TITLES[tabName] || tabName;
+
+  // Pre-load available chats when going to Prompt or Scheduler
+  if (tabName === 'prompt' || tabName === 'scheduler') {
+    loadAvailableChats();
+  }
 }
 
 // Bind sidebar nav clicks
@@ -2039,6 +2072,84 @@ function init() {
   loadSchedulerStatus();
   handleResize();
 }
+
+// ===== Writing Style Cloner Handlers =====
+$('cloner-generate-btn')?.addEventListener('click', async () => {
+  const chatId = $('cloner-chat-select')?.value;
+  if (!chatId) {
+    toast('Please select a WhatsApp chat first', 'error');
+    return;
+  }
+
+  const targetRoleEl = document.querySelector('input[name="cloner-target-role"]:checked');
+  const target = targetRoleEl ? targetRoleEl.value : 'me';
+
+  const btn = $('cloner-generate-btn');
+  const statusLog = $('cloner-status-log');
+  const previewBox = $('cloner-preview-box');
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Fetching & Analyzing Chat...';
+  }
+  if (statusLog) {
+    statusLog.style.display = 'block';
+    statusLog.textContent = 'Retrieving last 80 messages and reverse-engineering style...';
+  }
+  if (previewBox) previewBox.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/prompt/clone-style`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+      body: JSON.stringify({ chatId, target }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to clone writing style');
+
+    if ($('cloner-prompt-preview')) {
+      $('cloner-prompt-preview').value = data.generatedRules;
+    }
+    if (previewBox) previewBox.style.display = 'block';
+    if (statusLog) statusLog.style.display = 'none';
+    toast('Writing style cloned successfully!', 'success');
+  } catch (err) {
+    toast(err.message || 'Linguistic style analysis failed', 'error');
+    if (statusLog) {
+      statusLog.textContent = `Error: ${err.message}`;
+      statusLog.style.color = 'var(--wa-danger)';
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🤖 Analyze & Generate Style Prompt';
+    }
+  }
+});
+
+$('cloner-append-btn')?.addEventListener('click', () => {
+  const generatedRules = $('cloner-prompt-preview')?.value;
+  const mainEditor = $('prompt-editor');
+
+  if (!generatedRules || !mainEditor) {
+    toast('No generated prompt rules to append', 'error');
+    return;
+  }
+
+  const divider = '\n\n# Mimicked Writing Style Rules\n';
+  mainEditor.value = mainEditor.value.trim() + divider + generatedRules.trim() + '\n';
+  
+  // Trigger input event to update character count and show unsaved changes
+  mainEditor.dispatchEvent(new Event('input'));
+
+  // Scroll main editor to bottom to show new rules
+  mainEditor.scrollTop = mainEditor.scrollHeight;
+
+  toast('Appended style rules to your System Prompt! Click "Save Prompt" to apply.', 'success');
+});
 
 // Auto-fill gate URL with current origin if empty
 if (window.location.origin && !window.location.origin.startsWith('file:')) {

@@ -328,6 +328,23 @@ async function postBulkCancel(req, res) {
   res.json({ success: true, cancelled });
 }
 
+// ── Writing Style Cloning ──
+const styleCloneService = require('../services/styleCloneService');
+
+async function postCloneChatStyle(req, res, next) {
+  try {
+    const { chatId, target } = req.body || {};
+    if (!chatId) {
+      return res.status(400).json({ success: false, error: 'Missing chatId parameter' });
+    }
+    const generatedRules = await styleCloneService.cloneStyle(chatId, target || 'me');
+    res.json({ success: true, generatedRules });
+  } catch (err) {
+    logger.error(`postCloneChatStyle failed: ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 module.exports = {
   getRoot,
   getHealth,
@@ -355,4 +372,5 @@ module.exports = {
   postBulkSend,
   getBulkProgress,
   postBulkCancel,
+  postCloneChatStyle,
 };
