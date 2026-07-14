@@ -1396,6 +1396,7 @@ const TAB_TITLES = {
   connection: 'Connection',
   prompt: 'AI Prompt',
   scheduler: 'Scheduler',
+  bulk: 'Bulk Send',
   settings: 'Settings',
 };
 
@@ -1428,6 +1429,455 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => {
 // Bind bottom tab clicks
 document.querySelectorAll('.bottom-tab[data-tab]').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+// ===== Bulk Send =====
+let bulkData = null;       // { headers, normalizedHeaders, rows, phoneColumn, nameColumn }
+let bulkTemplate = '';
+let bulkPollTimer = null;
+
+function bulkGoToStep(step) {
+  // Update step indicators
+  document.querySelectorAll('.bulk-step-indicator').forEach(el => {
+    const s = parseInt(el.dataset.step);
+    el.classList.remove('active', 'completed');
+    if (s === step) el.classList.add('active');
+    else if (s < step) el.classList.add('completed');
+  });
+  // Show/hide stages
+  document.querySelectorAll('.bulk-stage').forEach(el => el.classList.remove('active'));
+  const stage = $('bulk-stage-' + step);
+  if (stage) stage.classList.add('active');
+}
+
+// ── Step 1: Upload ──
+
+const uploadZone = $('bulk-upload-zone');
+const fileInput = $('bulk-file-input');
+
+if (uploadZone) {
+  uploadZone.addEventListener('click', () => fileInput?.click());
+
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('drag-over');
+  });
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length > 0) {
+      handleBulkFile(e.dataTransfer.files[0]);
+    }
+  });
+}
+
+fileInput?.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) {
+    handleBulkFile(e.target.files[0]);
+  }
+});
+
+async function handleBulkFile(file) {
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  if (file.size > maxSize) {
+    toast('File too large. Max 10MB.', 'error');
+    return;
+  }
+
+  // Show loading state
+  if (uploadZone) {
+    uploadZone.innerHTML = `
+      <div class="upload-icon">⏳</div>
+      <div class="upload-text">Parsing file...</div>
+    `;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/bulk/upload`, {
+      method: 'POST',
+      headers: { 'x-dashboard-key': DASHBOARD_KEY },
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Upload failed');
+
+    bulkData = data;
+
+    // Reset upload zone
+    if (uploadZone) {
+      uploadZone.innerHTML = `
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">Drop your file here or click to browse</div>
+        <div class="upload-hint">Supports .xlsx, .xls, .txt, .csv — Max 10MB</div>
+      `;
+    }
+
+    // Show file info
+    const fileInfoEl = $('bulk-file-info');
+    if (fileInfoEl) {
+      const ext = file.name.split('.').pop().toUpperCase();
+      fileInfoEl.style.display = 'flex';
+      fileInfoEl.innerHTML = `
+        <div class="bulk-file-info">
+          <span class="file-icon">${ext === 'XLSX' || ext === 'XLS' ? '📊' : '📄'}</span>
+          <div class="file-details">
+            <div class="file-name">${escapeHtml(file.name)}</div>
+            <div class="file-meta">${data.totalRows} rows • ${data.headers.length} columns</div>
+          </div>
+          <button class="btn btn-ghost" onclick="bulkResetUpload()" style="font-size:18px;padding:4px;">✕</button>
+        </div>
+      `;
+    }
+
+    // Populate phone column dropdown
+    const phoneSelect = $('bulk-phone-column');
+    if (phoneSelect) {
+      phoneSelect.innerHTML = '<option value="">-- Select phone column --</option>';
+      data.normalizedHeaders.forEach((nh, idx) => {
+        const opt = document.createElement('option');
+        opt.value = nh;
+        opt.textContent = data.headers[idx];
+        if (nh === data.phoneColumn) opt.selected = true;
+        phoneSelect.appendChild(opt);
+      });
+    }
+
+    // Show data preview table
+    renderBulkPreviewTable(data);
+
+    // Enable Next button
+    if ($('bulk-next-1')) $('bulk-next-1').disabled = false;
+
+    toast(`Parsed ${data.totalRows} rows successfully!`, 'success');
+  } catch (err) {
+    toast(err.message || 'Failed to parse file', 'error');
+    // Reset upload zone on error
+    if (uploadZone) {
+      uploadZone.innerHTML = `
+        <div class="upload-icon">📁</div>
+        <div class="upload-text">Drop your file here or click to browse</div>
+        <div class="upload-hint">Supports .xlsx, .xls, .txt, .csv — Max 10MB</div>
+      `;
+    }
+  }
+}
+
+function renderBulkPreviewTable(data) {
+  const wrap = $('bulk-table-preview');
+  if (!wrap) return;
+  wrap.style.display = 'block';
+
+  const maxPreviewRows = Math.min(data.rows.length, 10);
+  let html = '<div class="bulk-table-wrap"><table class="bulk-table"><thead><tr>';
+  data.headers.forEach(h => { html += `<th>${escapeHtml(h)}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  for (let i = 0; i < maxPreviewRows; i++) {
+    html += '<tr>';
+    data.normalizedHeaders.forEach(nh => {
+      html += `<td>${escapeHtml(data.rows[i][nh] || '')}</td>`;
+    });
+    html += '</tr>';
+  }
+  if (data.rows.length > maxPreviewRows) {
+    html += `<tr><td colspan="${data.headers.length}" style="text-align:center;color:var(--text-muted);font-style:italic;">…and ${data.rows.length - maxPreviewRows} more rows</td></tr>`;
+  }
+  html += '</tbody></table></div>';
+  wrap.innerHTML = html;
+}
+
+function bulkResetUpload() {
+  bulkData = null;
+  if ($('bulk-file-info')) $('bulk-file-info').style.display = 'none';
+  if ($('bulk-table-preview')) { $('bulk-table-preview').style.display = 'none'; $('bulk-table-preview').innerHTML = ''; }
+  if ($('bulk-phone-column')) $('bulk-phone-column').innerHTML = '<option value="">-- Auto-detected --</option>';
+  if ($('bulk-next-1')) $('bulk-next-1').disabled = true;
+  if (fileInput) fileInput.value = '';
+}
+
+$('bulk-next-1')?.addEventListener('click', () => {
+  if (!bulkData) { toast('Upload a file first', 'error'); return; }
+
+  // Get selected phone column
+  const phoneCol = $('bulk-phone-column')?.value || bulkData.phoneColumn;
+  if (!phoneCol) {
+    toast('Please select the phone number column', 'error');
+    return;
+  }
+  bulkData.phoneColumn = phoneCol;
+
+  // Render available fields in Step 2
+  const fieldsEl = $('bulk-available-fields');
+  if (fieldsEl) {
+    fieldsEl.innerHTML = '';
+    bulkData.normalizedHeaders.forEach(nh => {
+      const chip = document.createElement('span');
+      chip.className = 'bulk-placeholder-chip';
+      chip.textContent = `{{${nh}}}`;
+      fieldsEl.appendChild(chip);
+    });
+  }
+
+  bulkGoToStep(2);
+});
+
+// ── Step 2: Purpose ──
+
+$('bulk-back-2')?.addEventListener('click', () => bulkGoToStep(1));
+
+$('bulk-generate-btn')?.addEventListener('click', async () => {
+  const purpose = $('bulk-purpose')?.value.trim();
+  if (!purpose) { toast('Please describe the purpose of the message', 'error'); return; }
+  if (!bulkData) { toast('No data loaded', 'error'); return; }
+
+  const btn = $('bulk-generate-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Generating…'; }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/bulk/generate-template`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+      body: JSON.stringify({
+        purpose,
+        columns: bulkData.normalizedHeaders,
+        sampleRow: bulkData.rows[0],
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Template generation failed');
+
+    bulkTemplate = data.template;
+    if ($('bulk-template-editor')) $('bulk-template-editor').value = data.template;
+
+    // Render placeholder chips for step 3
+    renderBulkTemplateChips();
+    updateBulkPreview();
+
+    toast('Template generated!', 'success');
+    bulkGoToStep(3);
+  } catch (err) {
+    toast(err.message || 'Failed to generate template', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🤖 Generate Template'; }
+  }
+});
+
+// ── Step 3: Template ──
+
+function renderBulkTemplateChips() {
+  const el = $('bulk-template-fields');
+  if (!el || !bulkData) return;
+  el.innerHTML = '';
+  bulkData.normalizedHeaders.forEach(nh => {
+    const chip = document.createElement('span');
+    chip.className = 'bulk-placeholder-chip';
+    chip.textContent = `{{${nh}}}`;
+    chip.addEventListener('click', () => {
+      const editor = $('bulk-template-editor');
+      if (!editor) return;
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      const text = editor.value;
+      editor.value = text.substring(0, start) + `{{${nh}}}` + text.substring(end);
+      editor.focus();
+      editor.selectionStart = editor.selectionEnd = start + nh.length + 4;
+      updateBulkPreview();
+    });
+    el.appendChild(chip);
+  });
+}
+
+function updateBulkPreview() {
+  const template = $('bulk-template-editor')?.value || '';
+  const previewEl = $('bulk-preview-msg');
+  if (!previewEl || !bulkData || !bulkData.rows.length) return;
+
+  const firstRow = bulkData.rows[0];
+  const rendered = template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+    return firstRow[key] !== undefined ? firstRow[key] : match;
+  });
+  previewEl.textContent = rendered || '—';
+}
+
+$('bulk-template-editor')?.addEventListener('input', updateBulkPreview);
+
+$('bulk-back-3')?.addEventListener('click', () => bulkGoToStep(2));
+
+$('bulk-next-3')?.addEventListener('click', () => {
+  const template = $('bulk-template-editor')?.value.trim();
+  if (!template) { toast('Template cannot be empty', 'error'); return; }
+  bulkTemplate = template;
+
+  // Update Step 4 summary
+  if ($('bulk-send-summary')) {
+    $('bulk-send-summary').textContent = `Will send personalized messages to ${bulkData.rows.length} recipients using phone column "${bulkData.phoneColumn}".`;
+  }
+  // Update Step 4 preview
+  if ($('bulk-send-preview') && bulkData && bulkData.rows.length) {
+    const firstRow = bulkData.rows[0];
+    const rendered = template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      return firstRow[key] !== undefined ? firstRow[key] : match;
+    });
+    $('bulk-send-preview').textContent = rendered;
+  }
+
+  bulkGoToStep(4);
+});
+
+// ── Step 4: Send ──
+
+$('bulk-back-4')?.addEventListener('click', () => bulkGoToStep(3));
+
+$('bulk-send-btn')?.addEventListener('click', async () => {
+  if (!bulkTemplate || !bulkData) { toast('Missing template or data', 'error'); return; }
+
+  const btn = $('bulk-send-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Starting…'; }
+  if ($('bulk-back-4')) $('bulk-back-4').disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/bulk/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-dashboard-key': DASHBOARD_KEY,
+      },
+      body: JSON.stringify({
+        template: bulkTemplate,
+        rows: bulkData.rows,
+        phoneColumn: bulkData.phoneColumn,
+        countryCode: $('bulk-country-code')?.value || '91',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Failed to start sending');
+
+    toast('Bulk sending started!', 'success');
+
+    // Show progress UI
+    if ($('bulk-progress-wrap')) $('bulk-progress-wrap').style.display = 'block';
+    if ($('bulk-send-log')) { $('bulk-send-log').style.display = 'block'; $('bulk-send-log').innerHTML = ''; }
+    if ($('bulk-cancel-row')) $('bulk-cancel-row').style.display = 'flex';
+    if ($('bulk-stat-total')) $('bulk-stat-total').textContent = data.total || bulkData.rows.length;
+
+    // Start polling progress
+    startBulkProgressPoll();
+  } catch (err) {
+    toast(err.message || 'Failed to start sending', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '📨 Start Sending'; }
+    if ($('bulk-back-4')) $('bulk-back-4').disabled = false;
+  }
+});
+
+function startBulkProgressPoll() {
+  if (bulkPollTimer) clearInterval(bulkPollTimer);
+  bulkPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/bulk/progress`, {
+        headers: { 'x-dashboard-key': DASHBOARD_KEY },
+      });
+      const data = await res.json();
+      if (!data.success) return;
+
+      updateBulkProgress(data);
+
+      if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'error') {
+        clearInterval(bulkPollTimer);
+        bulkPollTimer = null;
+        onBulkSendComplete(data);
+      }
+    } catch (_) {}
+  }, 1500);
+}
+
+function updateBulkProgress(data) {
+  const total = data.total || 1;
+  const sent = data.sent || 0;
+  const failed = data.failed || 0;
+  const pct = Math.round(((sent + failed) / total) * 100);
+
+  if ($('bulk-progress-fill')) $('bulk-progress-fill').style.width = pct + '%';
+  if ($('bulk-stat-sent')) $('bulk-stat-sent').textContent = sent;
+  if ($('bulk-stat-total')) $('bulk-stat-total').textContent = total;
+  if ($('bulk-stat-failed')) $('bulk-stat-failed').textContent = failed;
+  if ($('bulk-stat-status')) $('bulk-stat-status').textContent = data.status === 'sending' ? 'Sending…' : data.status;
+
+  // Update log
+  const logEl = $('bulk-send-log');
+  if (logEl && data.errors && data.errors.length > 0) {
+    const lastShown = parseInt(logEl.dataset.lastError || '0');
+    for (let i = lastShown; i < data.errors.length; i++) {
+      const err = data.errors[i];
+      const entry = document.createElement('div');
+      entry.style.color = 'var(--wa-danger)';
+      entry.textContent = `❌ Row ${err.row}: ${err.error}`;
+      logEl.appendChild(entry);
+    }
+    logEl.dataset.lastError = data.errors.length;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+}
+
+function onBulkSendComplete(data) {
+  const statusText = data.status === 'completed' ? '✅ Completed' : data.status === 'cancelled' ? '⏹ Cancelled' : '❌ Error';
+  if ($('bulk-stat-status')) $('bulk-stat-status').textContent = statusText;
+  if ($('bulk-send-btn')) { $('bulk-send-btn').disabled = true; $('bulk-send-btn').textContent = statusText; }
+  if ($('bulk-cancel-row')) $('bulk-cancel-row').style.display = 'none';
+  if ($('bulk-done-row')) $('bulk-done-row').style.display = 'flex';
+
+  const logEl = $('bulk-send-log');
+  if (logEl) {
+    const entry = document.createElement('div');
+    entry.style.color = 'var(--wa-green)';
+    entry.style.fontWeight = '600';
+    entry.textContent = `${statusText} — ${data.sent || 0} sent, ${data.failed || 0} failed out of ${data.total || 0}`;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  toast(`Bulk send ${data.status}: ${data.sent || 0} sent, ${data.failed || 0} failed`, data.status === 'completed' ? 'success' : 'error');
+}
+
+$('bulk-cancel-btn')?.addEventListener('click', async () => {
+  try {
+    await fetch(`${API_BASE}/api/bulk/cancel`, {
+      method: 'POST',
+      headers: { 'x-dashboard-key': DASHBOARD_KEY },
+    });
+    toast('Cancelling…', '');
+  } catch (_) {}
+});
+
+$('bulk-new-btn')?.addEventListener('click', () => {
+  // Reset everything
+  bulkData = null;
+  bulkTemplate = '';
+  bulkResetUpload();
+  if ($('bulk-purpose')) $('bulk-purpose').value = '';
+  if ($('bulk-template-editor')) $('bulk-template-editor').value = '';
+  if ($('bulk-preview-msg')) $('bulk-preview-msg').textContent = '—';
+  if ($('bulk-send-preview')) $('bulk-send-preview').textContent = '—';
+  if ($('bulk-send-summary')) $('bulk-send-summary').textContent = '—';
+  if ($('bulk-progress-wrap')) $('bulk-progress-wrap').style.display = 'none';
+  if ($('bulk-progress-fill')) $('bulk-progress-fill').style.width = '0%';
+  if ($('bulk-send-log')) { $('bulk-send-log').style.display = 'none'; $('bulk-send-log').innerHTML = ''; $('bulk-send-log').dataset.lastError = '0'; }
+  if ($('bulk-cancel-row')) $('bulk-cancel-row').style.display = 'none';
+  if ($('bulk-done-row')) $('bulk-done-row').style.display = 'none';
+  if ($('bulk-send-btn')) { $('bulk-send-btn').disabled = false; $('bulk-send-btn').textContent = '📨 Start Sending'; }
+  if ($('bulk-back-4')) $('bulk-back-4').disabled = false;
+  if ($('bulk-stat-sent')) $('bulk-stat-sent').textContent = '0';
+  if ($('bulk-stat-failed')) $('bulk-stat-failed').textContent = '0';
+  if ($('bulk-stat-total')) $('bulk-stat-total').textContent = '0';
+  bulkGoToStep(1);
 });
 
 // ===== Theme Toggle =====

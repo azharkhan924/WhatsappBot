@@ -78,4 +78,12 @@ router.post(['/api/scheduler/quotes/upload', '/scheduler/quotes/upload'], dashbo
   res.json({ success: true, content });
 });
 
+// ── Bulk Messaging routes ──
+const uploadBulk = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
+router.post(['/api/bulk/upload', '/bulk/upload'], dashboardAuth, uploadBulk.single('file'), controller.postBulkUpload);
+router.post(['/api/bulk/generate-template', '/bulk/generate-template'], dashboardAuth, controller.postBulkGenerateTemplate);
+router.post(['/api/bulk/send', '/bulk/send'], dashboardAuth, controller.postBulkSend);
+router.get(['/api/bulk/progress', '/bulk/progress'], dashboardAuth, controller.getBulkProgress);
+router.post(['/api/bulk/cancel', '/bulk/cancel'], dashboardAuth, controller.postBulkCancel);
+
 module.exports = router;

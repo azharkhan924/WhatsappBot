@@ -263,6 +263,71 @@ async function postAdminLogin(req, res, next) {
   }
 }
 
+// ── Bulk Messaging Endpoints ──
+
+const bulkService = require('../services/bulkService');
+
+async function postBulkUpload(req, res, next) {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+    const result = bulkService.parseFile(req.file.buffer, req.file.originalname);
+    res.json({
+      success: true,
+      headers: result.headers,
+      normalizedHeaders: result.normalizedHeaders,
+      rows: result.rows,
+      totalRows: result.rows.length,
+      phoneColumn: result.phoneColumn,
+      nameColumn: result.nameColumn,
+    });
+  } catch (err) {
+    logger.error(`postBulkUpload failed: ${err.message}`);
+    res.status(400).json({ success: false, error: err.message });
+  }
+}
+
+async function postBulkGenerateTemplate(req, res, next) {
+  try {
+    const { purpose, columns, sampleRow } = req.body || {};
+    if (!purpose || !columns || !sampleRow) {
+      return res.status(400).json({ success: false, error: 'Missing purpose, columns, or sampleRow' });
+    }
+    const template = await bulkService.generateTemplate(purpose, columns, sampleRow);
+    res.json({ success: true, template });
+  } catch (err) {
+    logger.error(`postBulkGenerateTemplate failed: ${err.message}`);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+async function postBulkSend(req, res, next) {
+  try {
+    const { template, rows, phoneColumn, countryCode } = req.body || {};
+    if (!template || !rows || !phoneColumn) {
+      return res.status(400).json({ success: false, error: 'Missing template, rows, or phoneColumn' });
+    }
+    const result = await bulkService.startBulkSend(
+      template, rows, phoneColumn, countryCode || '91', whatsappService
+    );
+    res.json({ success: true, ...result });
+  } catch (err) {
+    logger.error(`postBulkSend failed: ${err.message}`);
+    res.status(400).json({ success: false, error: err.message });
+  }
+}
+
+async function getBulkProgress(req, res) {
+  const progress = bulkService.getProgress();
+  res.json({ success: true, ...progress });
+}
+
+async function postBulkCancel(req, res) {
+  const cancelled = bulkService.cancelJob();
+  res.json({ success: true, cancelled });
+}
+
 module.exports = {
   getRoot,
   getHealth,
@@ -285,4 +350,9 @@ module.exports = {
   postPairingCode,
   postAdminLogin,
   postHardReset,
+  postBulkUpload,
+  postBulkGenerateTemplate,
+  postBulkSend,
+  getBulkProgress,
+  postBulkCancel,
 };
