@@ -1603,7 +1603,7 @@
             <div class="section-label">🖼️ Image Source</div>
             <select id="scheduler-image-source" style="margin-bottom:12px;">
               <option value="gallery" selected>Upload from Gallery</option>
-              <option value="ai_generated">AI Generated Images (Gemini)</option>
+              <option value="ai_generated">AI Generated Images</option>
             </select>
 
             <!-- Gallery Mode Section -->
@@ -1637,18 +1637,10 @@
 
             <!-- AI Generated Mode Section -->
             <div id="scheduler-ai-image-section" style="display:none;">
-              <div style="background:rgba(37,211,102,0.08); border:1px solid rgba(37,211,102,0.2); border-radius:10px; padding:12px; margin-bottom:12px;">
-                <div style="font-size:12px; color:var(--wa-green); font-weight:600; margin-bottom:6px;">🤖 AI Image + Caption Generation</div>
-                <div style="font-size:11px; color:var(--text-muted); line-height:1.5;">
-                  AI will generate a unique image and caption for each scheduled send using your Gemini API keys.
-                  The system prompt context is injected automatically for accuracy.
-                </div>
-              </div>
-
-              <div class="section-label" style="margin-top:8px;">📝 Common AI Prompt <span style="color:var(--wa-green);font-size:11px;">(Required)</span></div>
+              <div class="section-label">📝 Common AI Prompt <span style="color:var(--wa-green);font-size:11px;">(Required)</span></div>
               <textarea id="scheduler-common-prompt" style="min-height:90px;" placeholder="Describe what kind of image and caption to generate.&#10;&#10;Example: Generate a professional marketing image for our tech courses with a motivational caption encouraging students to enroll. Use modern design style with tech elements."></textarea>
               <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:12px;">
-                ℹ️ The AI will use your <b>System Prompt</b> context automatically for accuracy. You can mention both image and caption requirements here.
+                ℹ️ The AI will use your <b>System Prompt</b> context automatically for accuracy.
               </div>
 
               <div class="section-label">📸 Image Style Hint <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(Optional)</span></div>
