@@ -24,7 +24,7 @@ class NvidiaProvider extends AIProvider {
     return `nvidia:${this.model}`;
   }
 
-  async generateReply({ systemPrompt, history, userMessage }) {
+  async generateReply({ systemPrompt, history, userMessage, maxTokens }) {
     const messages = [{ role: 'system', content: systemPrompt }];
 
     for (const item of history) {
@@ -39,7 +39,7 @@ class NvidiaProvider extends AIProvider {
       model: this.model,
       messages,
       temperature: config.ai.temperature,
-      max_tokens: config.ai.maxTokens,
+      max_tokens: maxTokens || config.ai.maxTokens,
     };
 
     const response = await axios.post(BASE_URL, payload, {

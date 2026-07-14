@@ -192,6 +192,7 @@ async function generateTemplate(purpose, columns, sampleRow) {
       systemPrompt: 'You are a WhatsApp message template generator. Output ONLY the message template, nothing else.',
       history: [],
       userMessage: prompt,
+      maxTokens: 2048, // Request higher limit to avoid truncation due to thinking tokens
     });
     return template.trim();
   } catch (err) {

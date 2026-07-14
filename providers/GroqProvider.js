@@ -30,7 +30,7 @@ class GroqProvider extends AIProvider {
     return `groq:${this.model}`;
   }
 
-  async generateReply({ systemPrompt, history, userMessage }) {
+  async generateReply({ systemPrompt, history, userMessage, maxTokens }) {
     if (this.apiKeys.length === 0) {
       throw new Error('No Groq API keys are configured.');
     }
@@ -49,7 +49,7 @@ class GroqProvider extends AIProvider {
       model: this.model,
       messages,
       temperature: config.ai.temperature,
-      max_tokens: config.ai.maxTokens,
+      max_tokens: maxTokens || config.ai.maxTokens,
     };
 
     let lastError = null;

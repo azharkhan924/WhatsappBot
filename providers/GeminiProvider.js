@@ -31,7 +31,7 @@ class GeminiProvider extends AIProvider {
     return `gemini:${this.model}`;
   }
 
-  async generateReply({ systemPrompt, history, userMessage }) {
+  async generateReply({ systemPrompt, history, userMessage, maxTokens }) {
     if (this.apiKeys.length === 0) {
       throw new Error('No Gemini API keys are configured.');
     }
@@ -53,7 +53,7 @@ class GeminiProvider extends AIProvider {
       },
       generationConfig: {
         temperature: config.ai.temperature,
-        maxOutputTokens: config.ai.maxTokens,
+        maxOutputTokens: maxTokens || config.ai.maxTokens,
       },
     };
 
