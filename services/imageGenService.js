@@ -52,33 +52,48 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
 
   ensureTempDir();
 
-  // Build the generation prompt with system context for accuracy
   const systemContext = botConfigService.getSystemPrompt();
 
-  let fullPrompt = `You are an AI assistant that generates images and captions for WhatsApp messages.\n\n`;
-  fullPrompt += `## Business/Brand Context (use this for accuracy — do NOT hallucinate details):\n${systemContext}\n\n`;
-  fullPrompt += `## Task:\nGenerate an image and a short engaging caption based on the following instructions.\n\n`;
-  fullPrompt += `## Main Instructions:\n${commonPrompt}\n\n`;
+  // 1. Generate Caption using active text AI provider (Groq / Gemini / NVIDIA)
+  // This is highly flexible and avoids hallucination by leveraging full system context.
+  const aiService = require('./aiService');
+  let caption = '';
+  try {
+    logger.info('ImageGen: Generating caption using active text AI provider...');
+    const captionSystemPrompt = `System Context / Business Info:\n${systemContext}\n\nInstructions:\nYou are a copywriter. Write a short, highly engaging caption for a daily image update. Do NOT write greetings, notes, quotes, intro, or explanations. Output ONLY the caption itself.\n\nIMPORTANT: Stay strictly factual based on the business context. Do not make up information that is not explicitly in the context.`;
+    
+    let captionUserMessage = `Write a caption based on this prompt: "${commonPrompt}"`;
+    if (captionHint) {
+      captionUserMessage += `\nSpecific formatting/style instructions: ${captionHint}`;
+    }
 
+    caption = await aiService.generateOneShot({
+      systemPrompt: captionSystemPrompt,
+      userMessage: captionUserMessage,
+      maxTokens: 1024,
+    });
+    logger.info('ImageGen: Caption generated successfully.');
+  } catch (err) {
+    logger.error(`ImageGen: Caption generation failed (${err.message}). Falling back to simple fallback caption.`);
+    caption = commonPrompt;
+  }
+
+  // 2. Generate Image using Gemini's dedicated Imagen 3 model via :predict REST endpoint
+  let imagePrompt = `Theme: ${systemContext.substring(0, 300)}... Prompt: ${commonPrompt}`;
   if (imageHint) {
-    fullPrompt += `## Specific Image Instructions:\n${imageHint}\n\n`;
+    imagePrompt += ` Style instructions: ${imageHint}`;
   }
-
-  if (captionHint) {
-    fullPrompt += `## Specific Caption Instructions:\n${captionHint}\n\n`;
-  }
-
-  fullPrompt += `## Output Format:\nGenerate a high-quality, visually appealing image that matches the instructions above. Also output a short WhatsApp-friendly caption (2-4 lines max, can include emojis). Output the caption as plain text BEFORE the image.\n\nIMPORTANT: Stay strictly factual based on the business context provided. Do not make up information that isn't in the context.`;
 
   const payload = {
-    contents: [
+    instances: [
       {
-        parts: [{ text: fullPrompt }],
+        prompt: imagePrompt,
       },
     ],
-    generationConfig: {
-      responseModalities: ['TEXT', 'IMAGE'],
-      temperature: 0.8,
+    parameters: {
+      sampleCount: 1,
+      aspectRatio: '1:1',
+      outputMimeType: 'image/jpeg',
     },
   };
 
@@ -88,56 +103,27 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
   for (let i = 0; i < apiKeys.length; i++) {
     const idx = (startIdx + i) % apiKeys.length;
     const apiKey = apiKeys[idx];
-    const url = `${BASE_URL}/${IMAGE_MODEL}:generateContent?key=${apiKey}`;
+    const url = `${BASE_URL}/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
     try {
-      logger.info(`ImageGen: Attempting with Gemini API key index ${idx}...`);
+      logger.info(`ImageGen: Attempting image generation with API key index ${idx}...`);
 
       const response = await axios.post(url, payload, {
         headers: { 'Content-Type': 'application/json' },
-        timeout: 60000, // Image generation can take longer — 60s timeout
+        timeout: 60000, // 60s timeout for image generation
       });
 
       // Update rotation index on success
       currentKeyIndex = (idx + 1) % apiKeys.length;
 
-      const candidates = response.data && response.data.candidates;
-      if (!candidates || candidates.length === 0) {
-        throw new Error('Gemini Image API returned no candidates');
+      const predictions = response.data && response.data.predictions;
+      if (!predictions || predictions.length === 0 || !predictions[0].bytesBase64Encoded) {
+        throw new Error('Imagen 3 API did not return predictions or bytes');
       }
 
-      const parts = candidates[0].content && candidates[0].content.parts;
-      if (!parts || parts.length === 0) {
-        throw new Error('Gemini Image API returned empty response');
-      }
-
-      // Parse the response: extract text (caption) and image (base64)
-      let caption = '';
-      let imageData = null;
-      let imageMimeType = 'image/png';
-
-      for (const part of parts) {
-        if (part.text) {
-          caption += part.text;
-        }
-        if (part.inlineData) {
-          imageData = part.inlineData.data; // base64 string
-          imageMimeType = part.inlineData.mimeType || 'image/png';
-        }
-      }
-
-      if (!imageData) {
-        throw new Error('Gemini Image API did not return an image in the response');
-      }
-
-      // Determine file extension from mime type
-      const extMap = {
-        'image/png': '.png',
-        'image/jpeg': '.jpg',
-        'image/webp': '.webp',
-        'image/gif': '.gif',
-      };
-      const ext = extMap[imageMimeType] || '.png';
+      const imageData = predictions[0].bytesBase64Encoded;
+      const imageMimeType = 'image/jpeg';
+      const ext = '.jpg';
 
       // Save image to temp file
       const filename = `ai_generated_${Date.now()}${ext}`;
@@ -145,7 +131,7 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
       const imageBuffer = Buffer.from(imageData, 'base64');
       fs.writeFileSync(filePath, imageBuffer);
 
-      logger.info(`ImageGen: Successfully generated image (${(imageBuffer.length / 1024).toFixed(1)}KB) with caption.`);
+      logger.info(`ImageGen: Successfully generated image (${(imageBuffer.length / 1024).toFixed(1)}KB)`);
 
       return {
         filePath,
@@ -166,7 +152,6 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
       // Rotate to next key
       currentKeyIndex = (idx + 1) % apiKeys.length;
 
-      // If it's not a rate limit, and it's a 4xx client error, log details
       if (
         err.response &&
         err.response.status >= 400 &&
