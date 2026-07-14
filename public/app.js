@@ -1319,6 +1319,21 @@ async function loadSchedulerStatus() {
     // Ad caption
     if ($('scheduler-ad-caption')) $('scheduler-ad-caption').value = status.adCaption || '';
 
+    // Image source mode (gallery vs ai_generated)
+    const imageSource = status.imageSource || 'gallery';
+    if ($('scheduler-image-source')) $('scheduler-image-source').value = imageSource;
+    if ($('scheduler-gallery-section')) {
+      $('scheduler-gallery-section').style.display = imageSource === 'gallery' ? 'block' : 'none';
+    }
+    if ($('scheduler-ai-image-section')) {
+      $('scheduler-ai-image-section').style.display = imageSource === 'ai_generated' ? 'block' : 'none';
+    }
+
+    // AI Image Generation fields
+    if ($('scheduler-common-prompt')) $('scheduler-common-prompt').value = status.commonPrompt || '';
+    if ($('scheduler-image-prompt-hint')) $('scheduler-image-prompt-hint').value = status.imagePromptHint || '';
+    if ($('scheduler-caption-prompt-hint')) $('scheduler-caption-prompt-hint').value = status.captionPromptHint || '';
+
     // Ad caption mode & prompt
     const captionMode = status.captionMode || 'static';
     if ($('scheduler-caption-mode')) $('scheduler-caption-mode').value = captionMode;
@@ -1392,6 +1407,17 @@ $('scheduler-quote-mode')?.addEventListener('change', (e) => {
   }
 });
 
+// Image source toggle (gallery vs AI generated)
+$('scheduler-image-source')?.addEventListener('change', (e) => {
+  const source = e.target.value;
+  if ($('scheduler-gallery-section')) {
+    $('scheduler-gallery-section').style.display = source === 'gallery' ? 'block' : 'none';
+  }
+  if ($('scheduler-ai-image-section')) {
+    $('scheduler-ai-image-section').style.display = source === 'ai_generated' ? 'block' : 'none';
+  }
+});
+
 // Scheduler toggle
 $('toggle-scheduler')?.addEventListener('change', async (e) => {
   const schedulerEnabled = e.target.checked;
@@ -1423,6 +1449,11 @@ $('scheduler-save-btn')?.addEventListener('click', async () => {
     schedulerQuotePrompt: $('scheduler-quote-prompt')?.value.trim() || '',
     schedulerCaptionMode: $('scheduler-caption-mode')?.value || 'static',
     schedulerCaptionPrompt: $('scheduler-caption-prompt')?.value.trim() || '',
+    // AI Image Generation fields
+    schedulerImageSource: $('scheduler-image-source')?.value || 'gallery',
+    schedulerCommonPrompt: $('scheduler-common-prompt')?.value.trim() || '',
+    schedulerImagePromptHint: $('scheduler-image-prompt-hint')?.value.trim() || '',
+    schedulerCaptionPromptHint: $('scheduler-caption-prompt-hint')?.value.trim() || '',
   };
 
   try {

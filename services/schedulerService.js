@@ -9,6 +9,7 @@ const config = require('../config');
 const quoteService = require('./quoteService');
 const adService = require('./adService');
 const botConfigService = require('./botConfigService');
+const imageGenService = require('./imageGenService');
 
 let cronJob = null;
 let whatsappServiceRef = null;
@@ -91,6 +92,11 @@ function getSchedulerConfig() {
     quotePrompt: botCfg.schedulerQuotePrompt || '',
     captionMode: botCfg.schedulerCaptionMode || 'static',
     captionPrompt: botCfg.schedulerCaptionPrompt || '',
+    // AI Image Generation settings
+    imageSource: botCfg.schedulerImageSource || 'gallery',
+    commonPrompt: botCfg.schedulerCommonPrompt || '',
+    imagePromptHint: botCfg.schedulerImagePromptHint || '',
+    captionPromptHint: botCfg.schedulerCaptionPromptHint || '',
   };
 }
 
@@ -192,36 +198,58 @@ async function sendScheduledMessages() {
     }
   }
 
-  // 2. Get all ad images in insertion order
-  const allImages = adService.getAllAdImagesInOrder(schedulerCfg.adImageDir);
-  
-  // 3. Resolve captions (static vs AI generated)
-  let captions = [];
-  if (allImages.length > 0) {
-    if (schedulerCfg.captionMode === 'ai_prompt' && schedulerCfg.captionPrompt) {
-      try {
-        logger.info('Scheduler: Caption mode is AI Prompt. Generating with main system prompt context...');
-        const systemPrompt = `System Context / Business Info:\n${botConfigService.getSystemPrompt()}\n\nInstructions:\nYou are a marketing assistant. Write a short, highly engaging caption for the daily ad image based on the request. Do NOT write greetings, notes, quotes, or explanations. Output ONLY the caption itself.`;
-        
-        const generatedCaption = await aiService.generateOneShot({
-          systemPrompt,
-          userMessage: `Based on the system context, write an ad caption matching this request: ${schedulerCfg.captionPrompt}`,
-          maxTokens: 2048, // Support long captions and avoid thinking truncations
-        });
-        
-        captions = Array(allImages.length).fill(generatedCaption.trim());
-        logger.info('Scheduler: AI ad caption successfully generated.');
-      } catch (err) {
-        logger.error(`Scheduler: AI ad caption generation failed (${err.message}). Falling back to static caption.`);
-        captions = adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '');
-      }
-    } else {
-      // Standard static mode
-      captions = adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '');
+  // 2. Determine image source and prepare images + captions
+  const isAiGenerated = schedulerCfg.imageSource === 'ai_generated';
+  let aiGeneratedImage = null;
+
+  if (isAiGenerated && schedulerCfg.commonPrompt) {
+    // ── AI Image Generation flow ──
+    try {
+      logger.info('Scheduler: Image source is AI Generated. Generating image + caption...');
+      aiGeneratedImage = await imageGenService.generateImageWithCaption({
+        commonPrompt: schedulerCfg.commonPrompt,
+        imageHint: schedulerCfg.imagePromptHint || '',
+        captionHint: schedulerCfg.captionPromptHint || '',
+      });
+      logger.info(`Scheduler: AI image generated successfully: ${aiGeneratedImage.filename}`);
+    } catch (err) {
+      logger.error(`Scheduler: AI image generation failed (${err.message}). Will send quote only.`);
     }
   }
 
-  // 4. Resolve all targets (groups + channels)
+  // For gallery mode, get images and captions as before
+  let allImages = [];
+  let captions = [];
+
+  if (!isAiGenerated) {
+    // ── Gallery flow (existing behavior) ──
+    allImages = adService.getAllAdImagesInOrder(schedulerCfg.adImageDir);
+
+    if (allImages.length > 0) {
+      if (schedulerCfg.captionMode === 'ai_prompt' && schedulerCfg.captionPrompt) {
+        try {
+          logger.info('Scheduler: Caption mode is AI Prompt. Generating with main system prompt context...');
+          const systemPrompt = `System Context / Business Info:\n${botConfigService.getSystemPrompt()}\n\nInstructions:\nYou are a marketing assistant. Write a short, highly engaging caption for the daily ad image based on the request. Do NOT write greetings, notes, quotes, or explanations. Output ONLY the caption itself.`;
+
+          const generatedCaption = await aiService.generateOneShot({
+            systemPrompt,
+            userMessage: `Based on the system context, write an ad caption matching this request: ${schedulerCfg.captionPrompt}`,
+            maxTokens: 2048,
+          });
+
+          captions = Array(allImages.length).fill(generatedCaption.trim());
+          logger.info('Scheduler: AI ad caption successfully generated.');
+        } catch (err) {
+          logger.error(`Scheduler: AI ad caption generation failed (${err.message}). Falling back to static caption.`);
+          captions = adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '');
+        }
+      } else {
+        captions = adService.getCaptionsForImages(schedulerCfg.adImageDir, allImages.length, schedulerCfg.adCaption || '');
+      }
+    }
+  }
+
+  // 3. Resolve all targets (groups + channels)
   const groupTargets = await resolveTargets(schedulerCfg.targetGroups, 'group');
   const channelTargets = await resolveTargets(schedulerCfg.targetChannels, 'channel');
   const allTargets = [...groupTargets, ...channelTargets];
@@ -234,7 +262,7 @@ async function sendScheduledMessages() {
     return { status: 'no_targets', details: lastRunDetails };
   }
 
-  // 5. Send to each target
+  // 4. Send to each target
   for (const target of allTargets) {
     const targetDetail = { target: target.name || target.id, status: 'pending' };
 
@@ -250,35 +278,63 @@ async function sendScheduledMessages() {
       logger.error(`Scheduler: failed to send message to ${target.name || target.id}: ${err.message}`);
     }
 
-    // Send all ad images in order, each with its own caption
-    if (allImages.length > 0) {
-      let imagesSent = 0;
-      let imagesFailed = 0;
-      for (let i = 0; i < allImages.length; i++) {
-        const img = allImages[i];
-        const caption = captions[i] || '';
+    // ── Send images based on source ──
+    if (isAiGenerated) {
+      // AI Generated image: send the single generated image
+      if (aiGeneratedImage) {
         try {
-          await whatsappServiceRef.sendMediaMessage(target.id, img.filePath, caption);
-          imagesSent++;
-          logger.info(`Scheduler: image ${i + 1}/${allImages.length} sent to ${target.name || target.id}: ${img.filename}`);
+          await whatsappServiceRef.sendMediaMessage(
+            target.id,
+            aiGeneratedImage.filePath,
+            aiGeneratedImage.caption
+          );
+          targetDetail.adSent = true;
+          targetDetail.adCount = '1/1';
+          targetDetail.adSource = 'ai_generated';
+          logger.info(`Scheduler: AI generated image sent to ${target.name || target.id}`);
         } catch (err) {
-          imagesFailed++;
+          targetDetail.adSent = false;
+          targetDetail.adError = err.message;
+          targetDetail.adSource = 'ai_generated';
           overallStatus = 'partial_failure';
-          logger.error(`Scheduler: failed to send image ${img.filename} to ${target.name || target.id}: ${err.message}`);
+          logger.error(`Scheduler: failed to send AI image to ${target.name || target.id}: ${err.message}`);
         }
-        // Small delay between images to avoid rate limiting
-        if (i < allImages.length - 1) {
-          await new Promise((r) => setTimeout(r, 1500));
-        }
-      }
-      targetDetail.adSent = imagesSent > 0;
-      targetDetail.adCount = `${imagesSent}/${allImages.length}`;
-      if (imagesFailed > 0) {
-        targetDetail.adError = `${imagesFailed} image(s) failed`;
+      } else {
+        targetDetail.adSent = false;
+        targetDetail.adError = 'AI image generation failed';
+        targetDetail.adSource = 'ai_generated';
       }
     } else {
-      targetDetail.adSent = false;
-      targetDetail.adError = 'No ad images found in directory';
+      // Gallery flow: send all ad images in order
+      if (allImages.length > 0) {
+        let imagesSent = 0;
+        let imagesFailed = 0;
+        for (let i = 0; i < allImages.length; i++) {
+          const img = allImages[i];
+          const caption = captions[i] || '';
+          try {
+            await whatsappServiceRef.sendMediaMessage(target.id, img.filePath, caption);
+            imagesSent++;
+            logger.info(`Scheduler: image ${i + 1}/${allImages.length} sent to ${target.name || target.id}: ${img.filename}`);
+          } catch (err) {
+            imagesFailed++;
+            overallStatus = 'partial_failure';
+            logger.error(`Scheduler: failed to send image ${img.filename} to ${target.name || target.id}: ${err.message}`);
+          }
+          // Small delay between images to avoid rate limiting
+          if (i < allImages.length - 1) {
+            await new Promise((r) => setTimeout(r, 1500));
+          }
+        }
+        targetDetail.adSent = imagesSent > 0;
+        targetDetail.adCount = `${imagesSent}/${allImages.length}`;
+        if (imagesFailed > 0) {
+          targetDetail.adError = `${imagesFailed} image(s) failed`;
+        }
+      } else {
+        targetDetail.adSent = false;
+        targetDetail.adError = 'No ad images found in directory';
+      }
     }
 
     targetDetail.status = targetDetail.quoteSent ? 'sent' : 'failed';
@@ -287,6 +343,9 @@ async function sendScheduledMessages() {
     // Small delay between targets to avoid rate limiting
     await new Promise((r) => setTimeout(r, 2000));
   }
+
+  // Clean up old generated images
+  imageGenService.cleanupTempImages();
 
   lastRunAt = new Date().toISOString();
   lastRunStatus = overallStatus;
@@ -327,6 +386,11 @@ function getStatus() {
     quotePrompt: schedulerCfg.quotePrompt,
     captionMode: schedulerCfg.captionMode,
     captionPrompt: schedulerCfg.captionPrompt,
+    // AI Image Generation fields
+    imageSource: schedulerCfg.imageSource,
+    commonPrompt: schedulerCfg.commonPrompt,
+    imagePromptHint: schedulerCfg.imagePromptHint,
+    captionPromptHint: schedulerCfg.captionPromptHint,
     isRunning: cronJob !== null,
     lastRunAt,
     lastRunStatus,

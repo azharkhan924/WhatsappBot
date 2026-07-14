@@ -17,10 +17,11 @@ try {
   const GroqProvider = require('../providers/GroqProvider');
   const NvidiaProvider = require('../providers/NvidiaProvider');
 
-  // Performance-ranked: best first
+  // Performance-ranked for TEXT generation: Groq (fastest) → Gemini → NVIDIA
+  // Gemini keys are primarily reserved for image generation
   const ranked = [
-    { name: 'gemini',  check: () => config.ai.gemini.apiKey, create: () => new GeminiProvider() },
     { name: 'groq',    check: () => config.ai.groq.apiKey && config.ai.groq.apiKey !== 'your_groq_api_key_here', create: () => new GroqProvider() },
+    { name: 'gemini',  check: () => config.ai.gemini.apiKey, create: () => new GeminiProvider() },
     { name: 'nvidia',  check: () => config.ai.nvidia.apiKey && config.ai.nvidia.apiKey !== 'your_nvidia_api_key_here', create: () => new NvidiaProvider() },
   ];
 

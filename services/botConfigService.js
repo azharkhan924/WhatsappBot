@@ -29,6 +29,11 @@ const defaultConfig = {
   schedulerQuotePrompt: '',
   schedulerCaptionMode: 'static', // 'static' or 'ai_prompt'
   schedulerCaptionPrompt: '',
+  // AI Image Generation settings
+  schedulerImageSource: 'gallery', // 'gallery' or 'ai_generated'
+  schedulerCommonPrompt: '', // Unified prompt for AI image + caption generation
+  schedulerImagePromptHint: '', // Optional specific hint for image generation
+  schedulerCaptionPromptHint: '', // Optional specific hint for caption style
   // Admin alert & AI mute settings
   adminNotifyNumber: '',
   autoPauseDurationHours: 12,
@@ -154,6 +159,19 @@ function updateConfig(updates) {
   }
   if (typeof updates.schedulerCaptionPrompt === 'string') {
     currentConfig.schedulerCaptionPrompt = updates.schedulerCaptionPrompt;
+  }
+  // AI Image Generation settings
+  if (typeof updates.schedulerImageSource === 'string') {
+    currentConfig.schedulerImageSource = updates.schedulerImageSource;
+  }
+  if (typeof updates.schedulerCommonPrompt === 'string') {
+    currentConfig.schedulerCommonPrompt = updates.schedulerCommonPrompt;
+  }
+  if (typeof updates.schedulerImagePromptHint === 'string') {
+    currentConfig.schedulerImagePromptHint = updates.schedulerImagePromptHint;
+  }
+  if (typeof updates.schedulerCaptionPromptHint === 'string') {
+    currentConfig.schedulerCaptionPromptHint = updates.schedulerCaptionPromptHint;
   }
   if (typeof updates.adminNotifyNumber === 'string') {
     const trimmed = updates.adminNotifyNumber.trim();

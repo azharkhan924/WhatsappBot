@@ -103,6 +103,8 @@ async function putConfig(req, res) {
     'schedulerEnabled', 'schedulerCron', 'schedulerTimezone',
     'schedulerTargetGroups', 'schedulerTargetChannels',
     'schedulerAdImageDir', 'schedulerAdCaption',
+    'schedulerImageSource', 'schedulerCommonPrompt',
+    'schedulerImagePromptHint', 'schedulerCaptionPromptHint',
   ];
   const hasSchedulerChange = schedulerKeys.some((k) => updates[k] !== undefined);
   if (hasSchedulerChange) {

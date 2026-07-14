@@ -1599,32 +1599,65 @@
             <div class="chip-list" id="scheduler-channel-chips"></div>
             <div class="empty-note" id="scheduler-channel-empty">No channels added</div>
 
-            <!-- Ad Images -->
-            <div class="section-label">🖼️ Ad Images</div>
-            <div class="input-row">
-              <input type="text" id="scheduler-ad-dir" placeholder="Leave empty for default folder">
-              <button class="btn btn-secondary btn-sm" id="scheduler-ad-upload-btn">Upload</button>
-              <input type="file" id="scheduler-ad-upload-input" accept="image/*" multiple style="display:none;">
-            </div>
-            <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
-              Available: <span id="scheduler-ad-count" style="color:var(--wa-green);font-weight:600;">—</span> images
-            </div>
-
-            <!-- Ad Caption -->
-            <div class="section-label">💬 Ad Caption Mode</div>
-            <select id="scheduler-caption-mode" style="margin-bottom:8px;">
-              <option value="static" selected>Static Caption Text (below)</option>
-              <option value="ai_prompt">Generate dynamically using AI Prompt</option>
+            <!-- Image Source -->
+            <div class="section-label">🖼️ Image Source</div>
+            <select id="scheduler-image-source" style="margin-bottom:12px;">
+              <option value="gallery" selected>Upload from Gallery</option>
+              <option value="ai_generated">AI Generated Images (Gemini)</option>
             </select>
 
-            <div id="scheduler-caption-prompt-box" style="display:none; margin-bottom:12px;">
-              <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Prompt to generate ad caption:</div>
-              <textarea id="scheduler-caption-prompt" style="min-height:60px;" placeholder="e.g., Write a highly engaging marketing caption promoting our courses. It will inherit system prompt context automatically."></textarea>
+            <!-- Gallery Mode Section -->
+            <div id="scheduler-gallery-section">
+              <div class="input-row">
+                <input type="text" id="scheduler-ad-dir" placeholder="Leave empty for default folder">
+                <button class="btn btn-secondary btn-sm" id="scheduler-ad-upload-btn">Upload</button>
+                <input type="file" id="scheduler-ad-upload-input" accept="image/*" multiple style="display:none;">
+              </div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">
+                Available: <span id="scheduler-ad-count" style="color:var(--wa-green);font-weight:600;">—</span> images
+              </div>
+
+              <!-- Ad Caption (gallery mode only) -->
+              <div class="section-label" style="margin-top:12px;">💬 Ad Caption Mode</div>
+              <select id="scheduler-caption-mode" style="margin-bottom:8px;">
+                <option value="static" selected>Static Caption Text (below)</option>
+                <option value="ai_prompt">Generate dynamically using AI Prompt</option>
+              </select>
+
+              <div id="scheduler-caption-prompt-box" style="display:none; margin-bottom:12px;">
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Prompt to generate ad caption:</div>
+                <textarea id="scheduler-caption-prompt" style="min-height:60px;" placeholder="e.g., Write a highly engaging marketing caption promoting our courses. It will inherit system prompt context automatically."></textarea>
+              </div>
+
+              <div id="scheduler-static-caption-box">
+                <textarea id="scheduler-ad-caption" style="min-height:80px;" placeholder="One caption per line (matching image order).&#10;If only one line, it applies to all images."></textarea>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:12px;">Or create a <b>captions.txt</b> in the images folder (one caption per line)</div>
+              </div>
             </div>
 
-            <div id="scheduler-static-caption-box">
-              <textarea id="scheduler-ad-caption" style="min-height:80px;" placeholder="One caption per line (matching image order).&#10;If only one line, it applies to all images."></textarea>
-              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:12px;">Or create a <b>captions.txt</b> in the images folder (one caption per line)</div>
+            <!-- AI Generated Mode Section -->
+            <div id="scheduler-ai-image-section" style="display:none;">
+              <div style="background:rgba(37,211,102,0.08); border:1px solid rgba(37,211,102,0.2); border-radius:10px; padding:12px; margin-bottom:12px;">
+                <div style="font-size:12px; color:var(--wa-green); font-weight:600; margin-bottom:6px;">🤖 AI Image + Caption Generation</div>
+                <div style="font-size:11px; color:var(--text-muted); line-height:1.5;">
+                  AI will generate a unique image and caption for each scheduled send using your Gemini API keys.
+                  The system prompt context is injected automatically for accuracy.
+                </div>
+              </div>
+
+              <div class="section-label" style="margin-top:8px;">📝 Common AI Prompt <span style="color:var(--wa-green);font-size:11px;">(Required)</span></div>
+              <textarea id="scheduler-common-prompt" style="min-height:90px;" placeholder="Describe what kind of image and caption to generate.&#10;&#10;Example: Generate a professional marketing image for our tech courses with a motivational caption encouraging students to enroll. Use modern design style with tech elements."></textarea>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:12px;">
+                ℹ️ The AI will use your <b>System Prompt</b> context automatically for accuracy. You can mention both image and caption requirements here.
+              </div>
+
+              <div class="section-label">📸 Image Style Hint <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(Optional)</span></div>
+              <textarea id="scheduler-image-prompt-hint" style="min-height:50px;" placeholder="e.g., Professional product photo style, minimalist design, vibrant colors, dark background..."></textarea>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:12px;">Specific instructions for how the image should look</div>
+
+              <div class="section-label">💬 Caption Style Hint <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(Optional)</span></div>
+              <textarea id="scheduler-caption-prompt-hint" style="min-height:50px;" placeholder="e.g., Include emojis, keep it under 3 lines, use Hinglish, add a call-to-action..."></textarea>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:4px;margin-bottom:12px;">Specific instructions for caption tone and style</div>
             </div>
 
             <!-- Quotes -->
