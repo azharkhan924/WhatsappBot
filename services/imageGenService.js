@@ -11,7 +11,7 @@ const logger = require('../utils/logger');
 const botConfigService = require('./botConfigService');
 
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const IMAGE_MODEL = 'gemini-2.5-flash-preview-image-generation';
+const IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 // Temp directory for generated images
 const TEMP_DIR = path.join(config.dataDir, 'generated_images');
@@ -78,22 +78,20 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
     caption = commonPrompt;
   }
 
-  // 2. Generate Image using Gemini's dedicated Imagen 3 model via :predict REST endpoint
+  // 2. Generate Image using Gemini's dedicated image model via generateContent REST endpoint
   let imagePrompt = `Theme: ${systemContext.substring(0, 300)}... Prompt: ${commonPrompt}`;
   if (imageHint) {
     imagePrompt += ` Style instructions: ${imageHint}`;
   }
 
   const payload = {
-    instances: [
+    contents: [
       {
-        prompt: imagePrompt,
+        parts: [{ text: imagePrompt }],
       },
     ],
-    parameters: {
-      sampleCount: 1,
-      aspectRatio: '1:1',
-      outputMimeType: 'image/jpeg',
+    generationConfig: {
+      responseModalities: ['IMAGE'],
     },
   };
 
@@ -103,7 +101,7 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
   for (let i = 0; i < apiKeys.length; i++) {
     const idx = (startIdx + i) % apiKeys.length;
     const apiKey = apiKeys[idx];
-    const url = `${BASE_URL}/imagen-3.0-generate-002:predict?key=${apiKey}`;
+    const url = `${BASE_URL}/${IMAGE_MODEL}:generateContent?key=${apiKey}`;
 
     try {
       logger.info(`ImageGen: Attempting image generation with API key index ${idx}...`);
@@ -116,14 +114,26 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
       // Update rotation index on success
       currentKeyIndex = (idx + 1) % apiKeys.length;
 
-      const predictions = response.data && response.data.predictions;
-      if (!predictions || predictions.length === 0 || !predictions[0].bytesBase64Encoded) {
-        throw new Error('Imagen 3 API did not return predictions or bytes');
+      const candidates = response.data && response.data.candidates;
+      if (!candidates || candidates.length === 0 || !candidates[0].content || !candidates[0].content.parts) {
+        throw new Error('Gemini Image API did not return candidates or parts');
       }
 
-      const imageData = predictions[0].bytesBase64Encoded;
-      const imageMimeType = 'image/jpeg';
-      const ext = '.jpg';
+      const part = candidates[0].content.parts.find(p => p.inlineData);
+      if (!part || !part.inlineData || !part.inlineData.data) {
+        throw new Error('Gemini Image API did not return an image part');
+      }
+
+      const imageData = part.inlineData.data; // base64
+      const imageMimeType = part.inlineData.mimeType || 'image/jpeg';
+      
+      const extMap = {
+        'image/png': '.png',
+        'image/jpeg': '.jpg',
+        'image/webp': '.webp',
+        'image/gif': '.gif',
+      };
+      const ext = extMap[imageMimeType] || '.jpg';
 
       // Save image to temp file
       const filename = `ai_generated_${Date.now()}${ext}`;
