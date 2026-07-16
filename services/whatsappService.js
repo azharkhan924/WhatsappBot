@@ -813,12 +813,14 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
     // Try sending the message
     let sentMsg;
     let sent = false;
+    let lastSendError = null;
 
     // Strategy 1: quoted reply via message.reply()
     try {
       sentMsg = await message.reply(replyText);
       sent = true;
     } catch (replyErr) {
+      lastSendError = replyErr;
       logger.warn(`message.reply() failed for ${message.from}: ${replyErr.message}. Trying direct send.`);
     }
 
@@ -828,6 +830,7 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
         sentMsg = await client.sendMessage(chat.id._serialized, replyText);
         sent = true;
       } catch (chatSendErr) {
+        lastSendError = chatSendErr;
         logger.warn(`client.sendMessage(chat) failed for ${message.from}: ${chatSendErr.message}`);
       }
     }
@@ -839,12 +842,26 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
         sent = true;
         logger.info(`Sent reply via resolved JID ${sendToJid} for LID user ${message.from}`);
       } catch (jidSendErr) {
+        lastSendError = jidSendErr;
         logger.error(`client.sendMessage(resolvedJid) failed for ${sendToJid}: ${jidSendErr.message}`);
       }
     }
 
     if (!sent) {
       logger.error(`All send strategies failed for ${message.from}. Could not deliver reply.`);
+      // Check if the browser is dead and trigger auto-reconnect
+      const errMsg = lastSendError ? lastSendError.message : '';
+      if (
+        errMsg.includes('detached Frame') ||
+        errMsg.includes('Target closed') ||
+        errMsg.includes('Execution context was destroyed') ||
+        errMsg.includes('Session closed') ||
+        errMsg.includes('Protocol error') ||
+        (errMsg.length > 0 && errMsg.length <= 2) // minified Puppeteer errors
+      ) {
+        logger.warn('Browser appears dead. Triggering client recreation...');
+        destroyAndRecreateClient('All send strategies failed: ' + errMsg).catch(() => {});
+      }
       return false;
     }
 
