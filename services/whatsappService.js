@@ -812,35 +812,38 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
 
     // Try sending the message
     let sentMsg;
+    let sent = false;
 
     // Strategy 1: quoted reply via message.reply()
     try {
       sentMsg = await message.reply(replyText);
+      sent = true;
     } catch (replyErr) {
       logger.warn(`message.reply() failed for ${message.from}: ${replyErr.message}. Trying direct send.`);
     }
 
     // Strategy 2: send via chat object
-    if (!sentMsg && chat && chat.id && chat.id._serialized) {
+    if (!sent && chat && chat.id && chat.id._serialized) {
       try {
         sentMsg = await client.sendMessage(chat.id._serialized, replyText);
+        sent = true;
       } catch (chatSendErr) {
         logger.warn(`client.sendMessage(chat) failed for ${message.from}: ${chatSendErr.message}`);
       }
     }
 
     // Strategy 3: send via resolved phone number JID
-    if (!sentMsg && sendToJid) {
+    if (!sent && sendToJid) {
       try {
         sentMsg = await client.sendMessage(sendToJid, replyText);
+        sent = true;
         logger.info(`Sent reply via resolved JID ${sendToJid} for LID user ${message.from}`);
       } catch (jidSendErr) {
         logger.error(`client.sendMessage(resolvedJid) failed for ${sendToJid}: ${jidSendErr.message}`);
-        throw jidSendErr;
       }
     }
 
-    if (!sentMsg) {
+    if (!sent) {
       logger.error(`All send strategies failed for ${message.from}. Could not deliver reply.`);
       return false;
     }
