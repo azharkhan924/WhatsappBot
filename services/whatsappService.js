@@ -49,35 +49,190 @@ function formatJid(jidOrNumber) {
   return `${str}@c.us`;
 }
 
-// Cache to avoid querying the same LID to phone number multiple times
-const lidCache = new Map();
+// ── LID Abstraction Helpers ─────────────────────────────────────────
+// Centralized identifier checks. Update these if WhatsApp adds new formats.
+
+function isLidJid(jid) {
+  return typeof jid === 'string' && jid.includes('@lid');
+}
+
+function isDirectChat(chat) {
+  if (!chat || !chat.id) return false;
+  const server = chat.id.server;
+  return server === 'c.us' || server === 'lid';
+}
+
+function isGroupChat(chat) {
+  return !!(chat && (chat.isGroup || (chat.id && chat.id.server === 'g.us')));
+}
+
+function isChannel(chat) {
+  if (!chat) return false;
+  if (chat.isChannel) return true;
+  if (chat.id && chat.id.server === 'newsletter') return true;
+  if (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter')) return true;
+  return false;
+}
+
+// ── Enhanced Puppeteer Crash Detection ──────────────────────────────
+// Inspects error.message, error.name, error.code, and stack traces
+// so new Chromium versions don't silently bypass detection.
 
 function isPuppeteerCrash(err) {
-  if (!err || !err.message) return false;
-  const msg = err.message;
-  return (
+  if (!err) return false;
+  const msg = err.message || '';
+  const name = err.name || '';
+  const stack = err.stack || '';
+  const code = err.code || '';
+
+  const isCrash = (
     msg.includes('detached Frame') ||
     msg.includes('Target closed') ||
     msg.includes('Execution context was destroyed') ||
     msg.includes('Session closed') ||
     msg.includes('Protocol error') ||
-    (msg.length > 0 && msg.length <= 2) // minified Puppeteer errors like "r" or "t"
+    msg.includes('Connection closed') ||
+    msg.includes('WebSocket is not open') ||
+    (msg.length > 0 && msg.length <= 2) || // minified Puppeteer errors like "r" or "t"
+    name === 'ProtocolError' ||
+    name === 'TargetCloseError' ||
+    code === 'ERR_CONNECTION_CLOSED' ||
+    stack.includes('ExecutionContext.js') ||
+    stack.includes('CDPSession')
   );
+
+  if (isCrash) {
+    stats.puppeteerCrashes += 1;
+  }
+  return isCrash;
 }
 
+// ── LID-to-Phone Cache with TTL ────────────────────────────────────
+// Entries store { phone, updatedAt } and expire after 24 hours.
+// Persisted to data/lidCache.json so restarts don't lose mappings.
+
+const lidCache = new Map();
+const LID_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const LID_CACHE_FILE = path.join(config.dataDir, 'lidCache.json');
+let lidCacheSaveTimer = null;
+
+function lidCacheGet(lid) {
+  const entry = lidCache.get(lid);
+  if (!entry) return null;
+  if (Date.now() - entry.updatedAt > LID_CACHE_TTL_MS) {
+    lidCache.delete(lid);
+    return null;
+  }
+  stats.lidCacheHits += 1;
+  return entry.phone;
+}
+
+function lidCacheSet(lid, phone) {
+  lidCache.set(lid, { phone, updatedAt: Date.now() });
+  scheduleLidCacheSave();
+}
+
+function loadLidCache() {
+  try {
+    const fs = require('fs');
+    if (fs.existsSync(LID_CACHE_FILE)) {
+      const data = JSON.parse(fs.readFileSync(LID_CACHE_FILE, 'utf-8'));
+      const now = Date.now();
+      let loaded = 0;
+      for (const [lid, entry] of Object.entries(data)) {
+        if (entry && entry.phone && (now - entry.updatedAt) < LID_CACHE_TTL_MS) {
+          lidCache.set(lid, entry);
+          loaded++;
+        }
+      }
+      if (loaded > 0) {
+        logger.info(`Loaded ${loaded} LID→phone mappings from disk cache.`);
+      }
+    }
+  } catch (err) {
+    logger.warn(`Failed to load LID cache from disk: ${err.message}`);
+  }
+}
+
+function saveLidCacheToDisk() {
+  try {
+    const fs = require('fs');
+    const obj = {};
+    for (const [lid, entry] of lidCache) {
+      obj[lid] = entry;
+    }
+    const dir = path.dirname(LID_CACHE_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(LID_CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch (err) {
+    logger.warn(`Failed to save LID cache to disk: ${err.message}`);
+  }
+}
+
+// Debounce disk writes to at most once per 30s
+function scheduleLidCacheSave() {
+  if (lidCacheSaveTimer) return;
+  lidCacheSaveTimer = setTimeout(() => {
+    lidCacheSaveTimer = null;
+    saveLidCacheToDisk();
+  }, 30_000);
+}
+
+// ── Automatic LID Cache Cleanup (every 6 hours) ────────────────────
+const LID_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
+let lidCleanupInterval = null;
+
+function startLidCacheCleanup() {
+  stopLidCacheCleanup();
+  lidCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    let removed = 0;
+    for (const [lid, entry] of lidCache) {
+      if (now - entry.updatedAt > LID_CACHE_TTL_MS) {
+        lidCache.delete(lid);
+        removed++;
+      }
+    }
+    if (removed > 0) {
+      saveLidCacheToDisk();
+      logger.info(`LID cache cleanup: removed ${removed} expired entries. ${lidCache.size} remaining.`);
+    }
+  }, LID_CLEANUP_INTERVAL_MS);
+}
+
+function stopLidCacheCleanup() {
+  if (lidCleanupInterval) {
+    clearInterval(lidCleanupInterval);
+    lidCleanupInterval = null;
+  }
+}
+
+// ── Metrics ─────────────────────────────────────────────────────────
 const stats = {
   startedAt: Date.now(),
   messagesReceived: 0,
   messagesReplied: 0,
   aiFailures: 0,
   reconnects: 0,
+  puppeteerCrashes: 0,
+  lidResolutions: 0,
+  lidCacheHits: 0,
+  failedSends: 0,
+  queuedMessages: 0,
+  reconnectDurationMs: 0,
+  lastReconnectAt: null,
 };
+
+// ── Outgoing Message Queue ──────────────────────────────────────────
+// Buffers sends when client is reconnecting; drains on 'ready'.
+const outgoingQueue = [];
+const MAX_QUEUE_SIZE = 50;
 
 let client = null;
 let isReady = false;
 let lastQr = null;
 let lastQrDataUrl = null;
-let isReconnecting = false;
+let reconnectPromise = null; // replaces isReconnecting boolean
 let healthCheckInterval = null;
 
 let ioInstance = null;
@@ -115,7 +270,7 @@ function getDashboardStatus() {
       qrDataUrl: lastQrDataUrl,
     };
   }
-  if (isReconnecting) {
+  if (reconnectPromise) {
     return {
       status: 'initializing',
     };
@@ -133,27 +288,38 @@ function getDashboardStatus() {
 const HEALTH_CHECK_INTERVAL_MS = 30_000; // 30 seconds
 const HEALTH_FAIL_THRESHOLD = 2; // require 2 consecutive failures before reconnect
 let consecutiveHealthFailures = 0;
+let healthCheckCount = 0;
 
 function startHealthCheck() {
   stopHealthCheck(); // clear any previous interval
   consecutiveHealthFailures = 0;
+  healthCheckCount = 0;
   healthCheckInterval = setInterval(async () => {
-    if (!client || !isReady || isReconnecting) return;
+    if (!client || !isReady || reconnectPromise) return;
     try {
       const state = await Promise.race([
         client.getState(),
-        // If getState() hangs (common after sleep), time it out.
         new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Health-check timed out')), 10_000)
+          setTimeout(() => reject(new Error('Health-check timed out')), 8_000)
         ),
       ]);
       if (state === null || state === undefined) {
         consecutiveHealthFailures += 1;
         logger.warn(`Health-check: client state is ${state} (fail ${consecutiveHealthFailures}/${HEALTH_FAIL_THRESHOLD})`);
       } else {
-        consecutiveHealthFailures = 0; // reset on success
-        logger.debug?.(`Health-check OK – state: ${state}`) ||
-          void 0;
+        // Also probe client.info to catch zombie browser that responds to getState but can't send
+        const infoOk = !!(client.info && client.info.wid);
+        if (!infoOk) {
+          consecutiveHealthFailures += 1;
+          logger.warn(`Health-check: getState OK but client.info missing (fail ${consecutiveHealthFailures}/${HEALTH_FAIL_THRESHOLD})`);
+        } else {
+          consecutiveHealthFailures = 0;
+          healthCheckCount += 1;
+          // Log at info level every 5 minutes (10 checks at 30s interval) for Railway visibility
+          if (healthCheckCount % 10 === 0) {
+            logger.info(`Health-check OK – state: ${state}, uptime: ${Math.floor((Date.now() - stats.startedAt) / 1000)}s`);
+          }
+        }
       }
     } catch (err) {
       consecutiveHealthFailures += 1;
@@ -233,15 +399,27 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 let reconnectAttempt = 0;
 
 async function destroyAndRecreateClient(reason) {
-  if (isReconnecting) {
+  // Reconnect deduplication: if already reconnecting, coalesce onto the existing promise
+  if (reconnectPromise) {
     logger.info(`Reconnection already in progress. Ignoring request: ${reason}`);
-    return;
+    return reconnectPromise;
   }
-  isReconnecting = true;
+  reconnectPromise = _doReconnect(reason);
+  try {
+    await reconnectPromise;
+  } finally {
+    reconnectPromise = null;
+  }
+}
+
+async function _doReconnect(reason) {
+  const reconnectStart = Date.now();
   isReady = false;
   stopHealthCheck();
   logger.warn(`Initiating client recreation. Reason: ${reason}`);
   stats.reconnects += 1;
+  stats.lastReconnectAt = new Date().toISOString();
+  broadcastState();
 
   // ── 1. Try graceful destroy ──
   try {
@@ -274,7 +452,6 @@ async function destroyAndRecreateClient(reason) {
 
   // ── 2. Force-kill any leftover Chromium using the session dir ──
   try {
-    // Find and kill any chrome/chromium processes that reference our session
     execSync(
       `pkill -f "${SESSION_PATH}" 2>/dev/null || true`,
       { timeout: 5000 }
@@ -307,7 +484,6 @@ async function destroyAndRecreateClient(reason) {
 
   if (reconnectAttempt > MAX_RECONNECT_ATTEMPTS) {
     logger.error(`Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached. Giving up. Restart the bot manually.`);
-    isReconnecting = false;
     reconnectAttempt = 0;
     return;
   }
@@ -315,35 +491,32 @@ async function destroyAndRecreateClient(reason) {
   const delay = Math.min(5000 * reconnectAttempt, 30000); // exponential-ish backoff, max 30s
   logger.info(`Will attempt reconnect #${reconnectAttempt} in ${delay / 1000}s...`);
 
-  setTimeout(() => {
-    initializeWhatsApp()
-      .then(() => {
-        isReconnecting = false;
-        reconnectAttempt = 0; // reset on success
-        logger.info('Client successfully recreated.');
-      })
-      .catch(async (err) => {
-        logger.error(`Recreation attempt #${reconnectAttempt} failed: ${err.message}`);
-        
-        // Clean up the failed client so it doesn't leak or fire events
-        if (client) {
-          try {
-            client.removeAllListeners();
-            await Promise.race([
-              client.destroy(),
-              sleep(5000),
-            ]);
-          } catch (destroyErr) {
-            logger.warn(`Could not destroy client after initialization failure: ${destroyErr.message}`);
-          }
-          client = null;
-        }
+  await sleep(delay);
 
-        isReconnecting = false;
-        // Retry with backoff
-        setTimeout(() => destroyAndRecreateClient('Retry recreation after failure'), 3000);
-      });
-  }, delay);
+  try {
+    await initializeWhatsApp();
+    reconnectAttempt = 0;
+    stats.reconnectDurationMs = Date.now() - reconnectStart;
+    logger.info(`Client successfully recreated in ${stats.reconnectDurationMs}ms.`);
+  } catch (err) {
+    logger.error(`Recreation attempt #${reconnectAttempt} failed: ${err.message}`);
+    // Clean up the failed client so it doesn't leak or fire events
+    if (client) {
+      try {
+        client.removeAllListeners();
+        await Promise.race([
+          client.destroy(),
+          sleep(5000),
+        ]);
+      } catch (destroyErr) {
+        logger.warn(`Could not destroy client after initialization failure: ${destroyErr.message}`);
+      }
+      client = null;
+    }
+    // Retry with backoff
+    await sleep(3000);
+    await _doReconnect('Retry recreation after failure');
+  }
 }
 
 function createClient() {
@@ -465,7 +638,11 @@ function registerEventHandlers() {
     }
 
     startHealthCheck();
+    startLidCacheCleanup();
     broadcastState();
+
+    // Drain any messages that were queued while reconnecting
+    drainOutgoingQueue();
   });
 
   client.on('disconnected', async (reason) => {
@@ -559,7 +736,7 @@ async function getChatMessageChat(message, senderNumber) {
 
 async function handleIncomingMessage(message) {
   // Early exit guard: skip processing if client is not fully ready/reconnecting
-  if (!client || !isReady || isReconnecting) {
+  if (!client || !isReady || reconnectPromise) {
     logger.warn(`Skipping incoming message from ${message.from}: WhatsApp client is not fully ready or is reconnecting.`);
     return;
   }
@@ -594,7 +771,7 @@ async function handleIncomingMessage(message) {
   let senderNumber = '';
   let contactName = '';
   const senderId = message.author || message.from;
-  const isLidJid = senderId.includes('@lid');
+  const senderIsLid = isLidJid(senderId);
 
   try {
     const contact = await message.getContact();
@@ -604,7 +781,7 @@ async function handleIncomingMessage(message) {
       }
       // contact.number returns LID digits for LID-based contacts, NOT the real phone number.
       // Only trust it if the JID is NOT a LID.
-      if (contact.number && !isLidJid) {
+      if (contact.number && !senderIsLid) {
         senderNumber = contact.number;
       }
     }
@@ -618,25 +795,27 @@ async function handleIncomingMessage(message) {
   }
 
   // Check the LID-to-phone cache first
-  if (isLidJid && lidCache.has(senderId)) {
-    senderNumber = lidCache.get(senderId);
-    logger.debug?.(`Resolved LID ${senderId} from cache to phone number ${senderNumber}`) || void 0;
+  if (senderIsLid) {
+    const cached = lidCacheGet(senderId);
+    if (cached) {
+      senderNumber = cached;
+    }
   }
 
   // For LID-based JIDs, resolve the real phone number via WhatsApp's internal API if not cached
-  if (!senderNumber && isLidJid && client && client.pupPage) {
+  if (!senderNumber && senderIsLid && client && client.pupPage) {
     try {
       const resolved = await client.pupPage.evaluate(async (lid) => {
         const result = await window.WWebJS.enforceLidAndPnRetrieval(lid);
         if (result && result.phone) {
-          // result.phone is a WID object; extract the user part (the actual phone number)
           return result.phone.user || result.phone._serialized?.split('@')[0] || '';
         }
         return '';
       }, senderId);
       if (resolved) {
         senderNumber = resolved;
-        lidCache.set(senderId, resolved);
+        lidCacheSet(senderId, resolved);
+        stats.lidResolutions += 1;
         logger.info(`Resolved LID ${senderId} to phone number ${senderNumber} (and cached)`);
       }
     } catch (err) {
@@ -652,7 +831,7 @@ async function handleIncomingMessage(message) {
   // Fallback to extracting digits from JID if above methods fail
   if (!senderNumber) {
     senderNumber = senderId.replace(/[^0-9]/g, '');
-    if (isLidJid) {
+    if (senderIsLid) {
       logger.warn(`Could not resolve LID ${senderId} to real phone number, using LID digits as fallback: ${senderNumber}`);
     }
   }
@@ -888,12 +1067,25 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
 
     if (!sent) {
       logger.error(`All send strategies failed for ${message.from}. Could not deliver reply.`);
+      stats.failedSends += 1;
       // Check if the browser is dead and trigger auto-reconnect
       if (isPuppeteerCrash(lastSendError)) {
         logger.warn(`Browser appears dead. Triggering client recreation: ${lastSendError?.message}`);
-        destroyAndRecreateClient('All send strategies failed: ' + lastSendError?.message).catch(() => {});
+        const reconnecting = destroyAndRecreateClient('All send strategies failed: ' + lastSendError?.message);
+        // Message retry: wait for reconnect and try once more
+        try {
+          await reconnecting;
+          if (client && isReady) {
+            const retryTarget = sendToJid || message.from;
+            sentMsg = await client.sendMessage(retryTarget, replyText);
+            sent = true;
+            logger.info(`Retry after reconnect succeeded for ${message.from}`);
+          }
+        } catch (retryErr) {
+          logger.error(`Retry after reconnect also failed for ${message.from}: ${retryErr.message}`);
+        }
       }
-      return false;
+      if (!sent) return false;
     }
 
     if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
@@ -913,6 +1105,7 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
 
 async function initializeWhatsApp() {
   muteService.loadMutes();
+  loadLidCache();
   if (!client) {
     createClient();
   }
@@ -920,8 +1113,30 @@ async function initializeWhatsApp() {
   await client.initialize();
 }
 
+async function drainOutgoingQueue() {
+  if (outgoingQueue.length === 0) return;
+  logger.info(`Draining ${outgoingQueue.length} queued outgoing messages...`);
+  while (outgoingQueue.length > 0) {
+    const { to, text, resolve, reject } = outgoingQueue.shift();
+    try {
+      const result = await sendMessage(to, text);
+      resolve(result);
+    } catch (err) {
+      reject(err);
+    }
+  }
+}
+
 async function sendMessage(to, text) {
-  if (!client || !isReady) {
+  // Queue messages if client is reconnecting instead of failing immediately
+  if (!client || !isReady || reconnectPromise) {
+    if (reconnectPromise && outgoingQueue.length < MAX_QUEUE_SIZE) {
+      stats.queuedMessages += 1;
+      logger.info(`Client reconnecting. Queuing message to ${to} (queue size: ${outgoingQueue.length + 1})`);
+      return new Promise((resolve, reject) => {
+        outgoingQueue.push({ to, text, resolve, reject });
+      });
+    }
     throw new Error('WhatsApp client is not ready yet.');
   }
   try {
@@ -935,6 +1150,7 @@ async function sendMessage(to, text) {
     return sentMsg;
   } catch (err) {
     logger.error(`sendMessage failed: ${err.message}`);
+    stats.failedSends += 1;
     if (isPuppeteerCrash(err)) {
       await destroyAndRecreateClient(err.message);
     }
@@ -991,6 +1207,7 @@ async function sendMediaMessage(to, filePath, caption = '') {
     return sentMsg;
   } catch (err) {
     logger.error(`sendMediaMessage failed: ${err.message}`);
+    stats.failedSends += 1;
     if (isPuppeteerCrash(err)) {
       await destroyAndRecreateClient(err.message);
     }
@@ -1025,11 +1242,11 @@ async function getAvailableChats() {
     const channels = [];
     const directChats = [];
     for (const chat of chats) {
-      if (chat.isGroup || (chat.id && chat.id.server === 'g.us')) {
+      if (isGroupChat(chat)) {
         groups.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Group' });
-      } else if (chat.isChannel || (chat.id && chat.id.server === 'newsletter') || (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter'))) {
+      } else if (isChannel(chat)) {
         channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
-      } else if (chat.id && (chat.id.server === 'c.us' || chat.id.server === 'lid')) {
+      } else if (isDirectChat(chat)) {
         directChats.push({ id: chat.id._serialized, name: chat.name || chat.id.user || 'Unnamed Contact' });
       }
     }
@@ -1150,6 +1367,8 @@ function getStats() {
     ...stats,
     ...getStatus(),
     memory: conversationMemory.getStats(),
+    lidCacheSize: lidCache.size,
+    outgoingQueueSize: outgoingQueue.length,
   };
 }
 
@@ -1184,6 +1403,8 @@ async function requestPairingCode(rawPhone) {
 async function hardReset() {
   logger.warn('Hard reset requested. Cleaning up and deleting session...');
   stopHealthCheck();
+  stopLidCacheCleanup();
+  saveLidCacheToDisk(); // persist before shutdown
   isReady = false;
   
   if (client) {
@@ -1245,4 +1466,9 @@ module.exports = {
   hardReset,
   formatJid,
   fetchChatMessages,
+  // LID abstraction helpers (available for other modules)
+  isLidJid,
+  isDirectChat,
+  isGroupChat,
+  isChannel,
 };
