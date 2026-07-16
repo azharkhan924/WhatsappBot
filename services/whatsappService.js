@@ -228,6 +228,10 @@ const stats = {
 const outgoingQueue = [];
 const MAX_QUEUE_SIZE = 50;
 
+// ── Incoming Message Queue ──────────────────────────────────────────
+// Buffers messages received during reconnect; drains on 'ready'.
+const incomingQueue = [];
+
 let client = null;
 let isReady = false;
 let lastQr = null;
@@ -545,10 +549,9 @@ function createClient() {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
-        '--single-process',
         '--disable-features=IsolateOrigins,site-per-process',
         '--disable-site-isolation-trials',
-        '--js-flags=--max-old-space-size=150',
+        '--js-flags=--max-old-space-size=512',
         '--disable-extensions',
         '--disable-default-apps',
         '--mute-audio'
@@ -646,6 +649,7 @@ function registerEventHandlers() {
 
     // Drain any messages that were queued while reconnecting
     drainOutgoingQueue();
+    drainIncomingQueue();
   });
 
   client.on('disconnected', async (reason) => {
@@ -748,9 +752,45 @@ async function getChatMessageChat(message, senderNumber) {
 }
 
 async function handleIncomingMessage(message) {
-  // Early exit guard: skip processing if client is not fully ready/reconnecting
+  // Early exit guard: queue incoming messages if client is not ready
   if (!client || !isReady || reconnectPromise) {
-    logger.warn(`Skipping incoming message from ${message.from}: WhatsApp client is not fully ready or is reconnecting.`);
+    // Basic validations so we only queue actual user chats (skip group if ignored, status, etc.)
+    if (message.fromMe || message.isStatus || message.broadcast || message.from === 'status@broadcast' || message.from.includes('@newsletter')) {
+      return;
+    }
+    const isGroup = message.from.endsWith('@g.us');
+    if (config.whatsapp.ignoreGroups && isGroup) return;
+
+    logger.info(`Queuing incoming message from ${message.from} during client reconnect.`);
+    incomingQueue.push({
+      from: message.from,
+      author: message.author,
+      body: message.body,
+      timestamp: message.timestamp,
+      id: message.id,
+      fromMe: message.fromMe,
+      isStatus: message.isStatus,
+      broadcast: message.broadcast,
+      // Wrap methods using the new client dynamically
+      getContact: async function() {
+        if (client && isReady) {
+          try { return await client.getContactById(this.author || this.from); } catch (_) {}
+        }
+        return null;
+      },
+      getChat: async function() {
+        if (client && isReady) {
+          try { return await client.getChatById(this.from); } catch (_) {}
+        }
+        return null;
+      },
+      reply: async function(replyText) {
+        if (client && isReady) {
+          return await client.sendMessage(this.from, replyText);
+        }
+        throw new Error('Client not ready for reply');
+      }
+    });
     return;
   }
 
@@ -1148,6 +1188,19 @@ async function drainOutgoingQueue() {
       resolve(result);
     } catch (err) {
       reject(err);
+    }
+  }
+}
+
+async function drainIncomingQueue() {
+  if (incomingQueue.length === 0) return;
+  logger.info(`Draining ${incomingQueue.length} queued incoming messages...`);
+  while (incomingQueue.length > 0) {
+    const msg = incomingQueue.shift();
+    try {
+      await handleIncomingMessage(msg);
+    } catch (err) {
+      logger.error(`Error processing queued incoming message from ${msg.from}: ${err.message}`);
     }
   }
 }
