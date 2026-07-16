@@ -1003,13 +1003,10 @@ async function handleIncomingMessage(message) {
       const adminJid = formatJid(botCfg.adminNotifyNumber);
       const adminAlert = `⚠️ *[Admin Alert]*\nUser *${logIdentifier}* has requested a human agent.\nAI automated replies have been paused for this user for the next *${pauseHours} hours*.`;
       try {
-        await client.sendMessage(adminJid, adminAlert);
+        await sendMessage(adminJid, adminAlert);
         logger.info(`Notified admin at ${adminJid} about human request.`);
       } catch (err) {
         logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
-        if (isPuppeteerCrash(err)) {
-          destroyAndRecreateClient('Admin notification failed: ' + err.message).catch(() => {});
-        }
       }
     }
     return;
@@ -1056,13 +1053,10 @@ async function handleIncomingMessage(message) {
           const adminJid = formatJid(botCfg.adminNotifyNumber);
           const adminAlert = `⚠️ *[System Alert]*\nUser *${logIdentifier}* appears to be frustrated or repeating the same question:\n_"${text}"_\n\nAI automated replies have been paused for this user for 10 minutes. Please intervene personally.`;
           try {
-            await client.sendMessage(adminJid, adminAlert);
+            await sendMessage(adminJid, adminAlert);
             logger.info(`Notified admin at ${adminJid} about repeated questions.`);
           } catch (err) {
             logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
-            if (isPuppeteerCrash(err)) {
-              destroyAndRecreateClient('Admin notification failed: ' + err.message).catch(() => {});
-            }
           }
         }
         
@@ -1094,6 +1088,13 @@ async function handleIncomingMessage(message) {
 
 async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
   try {
+    // If reconnecting, queue reply immediately instead of failing
+    if (!client || !isReady || reconnectPromise) {
+      logger.info(`Client reconnecting before typing delay. Queuing reply for ${message.from}.`);
+      await sendMessage(sendToJid || message.from, replyText);
+      return true;
+    }
+
     // If we have a valid chat object, do the full human-like flow
     if (chat) {
       if (await hasHumanReplied(chat, message)) {
@@ -1109,6 +1110,13 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
     const incomingText = (message.body || '').trim();
     const delay = computeHumanDelay(replyText.length, incomingText.length);
     await sleep(delay);
+
+    // If reconnecting after typing delay, queue reply immediately
+    if (!client || !isReady || reconnectPromise) {
+      logger.info(`Client reconnecting after typing delay. Queuing reply for ${message.from}.`);
+      await sendMessage(sendToJid || message.from, replyText);
+      return true;
+    }
 
     if (chat) {
       if (await hasHumanReplied(chat, message)) {
@@ -1134,26 +1142,26 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
       logger.warn(`message.reply() failed for ${message.from}: ${replyErr.message}. Trying direct send.`);
     }
 
-    // Strategy 2: send via chat object
+    // Strategy 2: send via chat object (uses wrapped sendMessage to support queueing fallback)
     if (!sent && chat && chat.id && chat.id._serialized) {
       try {
-        sentMsg = await client.sendMessage(chat.id._serialized, replyText);
+        sentMsg = await sendMessage(chat.id._serialized, replyText);
         sent = true;
       } catch (chatSendErr) {
         lastSendError = chatSendErr;
-        logger.warn(`client.sendMessage(chat) failed for ${message.from}: ${chatSendErr.message}`);
+        logger.warn(`sendMessage(chat) failed for ${message.from}: ${chatSendErr.message}`);
       }
     }
 
-    // Strategy 3: send via resolved phone number JID
+    // Strategy 3: send via resolved phone number JID (uses wrapped sendMessage to support queueing fallback)
     if (!sent && sendToJid) {
       try {
-        sentMsg = await client.sendMessage(sendToJid, replyText);
+        sentMsg = await sendMessage(sendToJid, replyText);
         sent = true;
         logger.info(`Sent reply via resolved JID ${sendToJid} for LID user ${message.from}`);
       } catch (jidSendErr) {
         lastSendError = jidSendErr;
-        logger.error(`client.sendMessage(resolvedJid) failed for ${sendToJid}: ${jidSendErr.message}`);
+        logger.error(`sendMessage(resolvedJid) failed for ${sendToJid}: ${jidSendErr.message}`);
       }
     }
 
