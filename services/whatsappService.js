@@ -385,6 +385,9 @@ async function hasHumanReplied(chat, message) {
     }
   } catch (err) {
     logger.warn(`Error checking if human replied: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      logger.warn('Puppeteer crashed during hasHumanReplied(). Chat may be stale.');
+    }
   }
   return false;
 }
@@ -713,20 +716,30 @@ function isJidMatchList(jid, list) {
 }
 
 async function getChatMessageChat(message, senderNumber) {
+  // Strategy 1: Direct getChat via whatsapp-web.js
   try {
     return await message.getChat();
   } catch (err) {
-    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Trying resolved JID.`);
+    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Trying fallbacks.`);
   }
 
-  // Fallback: try with the resolved phone number JID
+  // Strategy 2: Try with the resolved phone number JID (@c.us)
   try {
     const resolvedJid = formatJid(senderNumber);
     if (resolvedJid && resolvedJid !== message.from) {
       return await client.getChatById(resolvedJid);
     }
   } catch (fallbackErr) {
-    logger.warn(`Fallback getChatById also failed for ${message.from}: ${fallbackErr.message}`);
+    logger.warn(`Fallback getChatById(@c.us) also failed for ${message.from}: ${fallbackErr.message}`);
+  }
+
+  // Strategy 3: Try with the original raw ID (handles LID-indexed chats)
+  if (isLidJid(message.from)) {
+    try {
+      return await client.getChatById(message.from);
+    } catch (lidErr) {
+      logger.warn(`Fallback getChatById(LID) also failed for ${message.from}: ${lidErr.message}`);
+    }
   }
 
   // Return null — caller must handle this gracefully
@@ -762,7 +775,6 @@ async function handleIncomingMessage(message) {
     rememberMessageId(message.id._serialized);
   }
 
-  const userId = message.from;
   const text = (message.body || '').trim();
 
   if (!text) return; // ignore non-text (media-only) messages for now
@@ -837,6 +849,13 @@ async function handleIncomingMessage(message) {
   }
 
   const logIdentifier = contactName ? `${contactName} (+${senderNumber})` : `+${senderNumber}`;
+
+  // Compute a canonical userId based on the phone number so that conversation memory,
+  // mute state, and AI context are keyed on a STABLE identifier — not the raw LID which
+  // can change between sessions or coexist with a @c.us JID for the same person.
+  const userId = senderIsLid && senderNumber
+    ? formatJid(senderNumber)  // e.g. "919981604427@c.us"
+    : message.from;            // already @c.us or @g.us
 
   // Pre-compute the resolved JID for LID fallback sending
   const sendToJid = formatJid(senderNumber);
@@ -921,6 +940,9 @@ async function handleIncomingMessage(message) {
         logger.info(`Notified admin at ${adminJid} about human request.`);
       } catch (err) {
         logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
+        if (isPuppeteerCrash(err)) {
+          destroyAndRecreateClient('Admin notification failed: ' + err.message).catch(() => {});
+        }
       }
     }
     return;
@@ -971,6 +993,9 @@ async function handleIncomingMessage(message) {
             logger.info(`Notified admin at ${adminJid} about repeated questions.`);
           } catch (err) {
             logger.error(`Failed to send admin notification to ${adminJid}: ${err.message}`);
+            if (isPuppeteerCrash(err)) {
+              destroyAndRecreateClient('Admin notification failed: ' + err.message).catch(() => {});
+            }
           }
         }
         
