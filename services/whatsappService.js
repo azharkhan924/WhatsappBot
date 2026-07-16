@@ -761,17 +761,44 @@ async function handleIncomingMessage(message) {
     const isGroup = message.from.endsWith('@g.us');
     if (config.whatsapp.ignoreGroups && isGroup) return;
 
+    const msgId = message.id?._serialized || String(Math.random());
+    
+    // Duplicate protection: check if message is already in queue
+    if (incomingQueue.some(item => item.id && item.id._serialized === msgId)) {
+      logger.info(`Ignoring duplicate incoming message ${msgId} (already in queue).`);
+      return;
+    }
+
+    // Queue size cap: prevent unbounded memory growth
+    const MAX_INCOMING_QUEUE = 200;
+    if (incomingQueue.length >= MAX_INCOMING_QUEUE) {
+      logger.warn(`Incoming message queue is full (${MAX_INCOMING_QUEUE}). Discarding message from ${message.from}`);
+      return;
+    }
+
     logger.info(`Queuing incoming message from ${message.from} during client reconnect.`);
+    
+    // Store only simple/cloned data to avoid keeping references to the old Puppeteer page
+    const serializedId = message.id ? { ...message.id } : { _serialized: msgId };
+    const fromStr = String(message.from);
+    const authorStr = message.author ? String(message.author) : null;
+    const bodyStr = String(message.body || '');
+    const timestampVal = Number(message.timestamp || Math.floor(Date.now() / 1000));
+    const fromMeVal = !!message.fromMe;
+    const isStatusVal = !!message.isStatus;
+    const broadcastVal = !!message.broadcast;
+
     incomingQueue.push({
-      from: message.from,
-      author: message.author,
-      body: message.body,
-      timestamp: message.timestamp,
-      id: message.id,
-      fromMe: message.fromMe,
-      isStatus: message.isStatus,
-      broadcast: message.broadcast,
-      // Wrap methods using the new client dynamically
+      from: fromStr,
+      author: authorStr,
+      body: bodyStr,
+      timestamp: timestampVal,
+      id: serializedId,
+      fromMe: fromMeVal,
+      isStatus: isStatusVal,
+      broadcast: broadcastVal,
+      
+      // Methods dynamically rebuild context using the new client
       getContact: async function() {
         if (client && isReady) {
           try { return await client.getContactById(this.author || this.from); } catch (_) {}
@@ -1195,8 +1222,19 @@ async function drainOutgoingQueue() {
 async function drainIncomingQueue() {
   if (incomingQueue.length === 0) return;
   logger.info(`Draining ${incomingQueue.length} queued incoming messages...`);
+  
+  const QUEUE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  
   while (incomingQueue.length > 0) {
     const msg = incomingQueue.shift();
+    
+    // Queue expiration (TTL check): skip if message is older than 5 minutes
+    const msgTimeMs = msg.timestamp * 1000;
+    if (Date.now() - msgTimeMs > QUEUE_TTL_MS) {
+      logger.warn(`Discarding expired queued message from ${msg.from} (received ${Math.round((Date.now() - msgTimeMs) / 1000)}s ago).`);
+      continue;
+    }
+    
     try {
       await handleIncomingMessage(msg);
     } catch (err) {
