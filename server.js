@@ -11,6 +11,7 @@ const whatsappService = require('./services/whatsappService');
 const schedulerService = require('./services/schedulerService');
 
 let httpServer;
+let gcInterval;
 
 async function start() {
   logger.info('Starting WhatsApp AI Bot...');
@@ -54,6 +55,24 @@ async function start() {
     }
   }
 
+  // Set up periodic garbage collection (every 10 minutes) if --expose-gc is enabled
+  const GC_INTERVAL_MS = 10 * 60 * 1000;
+  gcInterval = setInterval(() => {
+    if (global.gc) {
+      try {
+        const memoryBefore = process.memoryUsage().heapUsed;
+        global.gc();
+        const memoryAfter = process.memoryUsage().heapUsed;
+        const freed = memoryBefore - memoryAfter;
+        logger.info(`[GC] Manual Garbage Collection run: Heap memory before: ${(memoryBefore / 1024 / 1024).toFixed(2)} MB, after: ${(memoryAfter / 1024 / 1024).toFixed(2)} MB. Freed ${(freed / 1024 / 1024).toFixed(2)} MB.`);
+      } catch (err) {
+        logger.error(`[GC] Failed to run manual GC: ${err.message}`);
+      }
+    } else {
+      logger.warn('[GC] Manual Garbage Collection is not exposed. Run node with --expose-gc.');
+    }
+  }, GC_INTERVAL_MS);
+
   // Initialize WhatsApp in background so HTTP/WebSocket endpoints respond instantly
   whatsappService.initializeWhatsApp()
     .then(() => {
@@ -72,6 +91,9 @@ async function start() {
 function shutdown(signal) {
   logger.info(`Received ${signal}. Shutting down gracefully...`);
   schedulerService.stopScheduler();
+  if (gcInterval) {
+    clearInterval(gcInterval);
+  }
   if (httpServer) {
     httpServer.close(() => {
       logger.info('HTTP server closed.');
