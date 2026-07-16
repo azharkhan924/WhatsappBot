@@ -523,17 +523,22 @@ async function getChatMessageChat(message, senderNumber) {
   try {
     return await message.getChat();
   } catch (err) {
-    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Retrying with resolved sender number.`);
-    try {
-      const resolvedJid = formatJid(senderNumber);
-      if (resolvedJid && resolvedJid !== message.from) {
-        return await client.getChatById(resolvedJid);
-      }
-    } catch (fallbackErr) {
-      logger.error(`Fallback failed to get chat for ${message.from}: ${fallbackErr.message}`);
-    }
-    throw err;
+    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Trying resolved JID.`);
   }
+
+  // Fallback: try with the resolved phone number JID
+  try {
+    const resolvedJid = formatJid(senderNumber);
+    if (resolvedJid && resolvedJid !== message.from) {
+      return await client.getChatById(resolvedJid);
+    }
+  } catch (fallbackErr) {
+    logger.warn(`Fallback getChatById also failed for ${message.from}: ${fallbackErr.message}`);
+  }
+
+  // Return null — caller must handle this gracefully
+  logger.warn(`Could not resolve chat object for ${message.from}. Will use direct sendMessage fallback.`);
+  return null;
 }
 
 async function handleIncomingMessage(message) {
@@ -615,6 +620,9 @@ async function handleIncomingMessage(message) {
 
   const logIdentifier = contactName ? `${contactName} (+${senderNumber})` : `+${senderNumber}`;
 
+  // Pre-compute the resolved JID for LID fallback sending
+  const sendToJid = formatJid(senderNumber);
+
   // Check dashboard bot config (botEnabled & whitelistEnabled)
   const botCfg = botConfigService.getConfig();
   if (!botCfg.botEnabled) {
@@ -629,7 +637,7 @@ async function handleIncomingMessage(message) {
     if (muteType === 'admin_handover') {
       logger.info(`User ${userId} is in admin_handover mute. Sending automated holding reply.`);
       const chat = await getChatMessageChat(message, senderNumber);
-      await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.");
+      await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.", sendToJid);
     } else {
       logger.info(`AI replies muted for ${userId}. Skipping reply.`);
     }
@@ -682,7 +690,7 @@ async function handleIncomingMessage(message) {
     // Send confirmation to the user (fetch chat lazily here)
     const chat = await getChatMessageChat(message, senderNumber);
     const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
-    await sendHumanLikeReply(chat, message, userConfirm);
+    await sendHumanLikeReply(chat, message, userConfirm, sendToJid);
 
     logToDashboard(`User ${logIdentifier} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
 
@@ -706,7 +714,7 @@ async function handleIncomingMessage(message) {
   // Slash commands bypass the AI pipeline entirely.
   if (isCommand(text)) {
     const reply = handleCommand(text, { userId, stats, isReady });
-    const sent = await sendHumanLikeReply(chat, message, reply);
+    const sent = await sendHumanLikeReply(chat, message, reply, sendToJid);
     if (sent) {
       logToDashboard(`Sent Command Reply to ${logIdentifier}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
     }
@@ -749,7 +757,7 @@ async function handleIncomingMessage(message) {
         }
         
         // Send immediate holding reply
-        await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.");
+        await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.", sendToJid);
         return;
       }
     }
@@ -757,7 +765,7 @@ async function handleIncomingMessage(message) {
 
   conversationMemory.addMessage(userId, 'user', text);
 
-  if (await hasHumanReplied(chat, message)) {
+  if (chat && await hasHumanReplied(chat, message)) {
     logger.info(`Human already replied to ${userId} before AI generation. Skipping bot reply.`);
     logToDashboard(`Cancelled AI reply to ${logIdentifier} (human replied first)`, 'warning');
     return;
@@ -767,46 +775,76 @@ async function handleIncomingMessage(message) {
   const { reply, failed } = await aiService.generateReply(userId, text, history);
   if (failed) stats.aiFailures += 1;
 
-  const sent = await sendHumanLikeReply(chat, message, reply);
+  const sent = await sendHumanLikeReply(chat, message, reply, sendToJid);
   if (sent) {
     conversationMemory.addMessage(userId, 'assistant', reply);
     logToDashboard(`Sent AI reply to ${logIdentifier}: "${reply.length > 50 ? reply.slice(0, 50) + '...' : reply}"`, 'success');
   }
 }
 
-async function sendHumanLikeReply(chat, message, replyText) {
+async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
   try {
-    if (await hasHumanReplied(chat, message)) {
-      logger.info(`Human already replied in chat ${message.from}. Cancelling bot reply.`);
-      return false;
+    // If we have a valid chat object, do the full human-like flow
+    if (chat) {
+      if (await hasHumanReplied(chat, message)) {
+        logger.info(`Human already replied in chat ${message.from}. Cancelling bot reply.`);
+        return false;
+      }
+
+      if (typeof chat.sendStateTyping === 'function') {
+        try { await chat.sendStateTyping(); } catch (_) { /* ignore typing errors */ }
+      }
     }
 
-    if (typeof chat.sendStateTyping === 'function') {
-      await chat.sendStateTyping();
-    }
     const incomingText = (message.body || '').trim();
     const delay = computeHumanDelay(replyText.length, incomingText.length);
     await sleep(delay);
 
-    if (await hasHumanReplied(chat, message)) {
-      logger.info(`Human replied during typing delay in chat ${message.from}. Cancelling bot reply.`);
-      if (typeof chat.clearState === 'function') {
-        await chat.clearState();
+    if (chat) {
+      if (await hasHumanReplied(chat, message)) {
+        logger.info(`Human replied during typing delay in chat ${message.from}. Cancelling bot reply.`);
+        if (typeof chat.clearState === 'function') {
+          try { await chat.clearState(); } catch (_) { /* ignore */ }
+        }
+        return false;
       }
-      return false;
     }
 
+    // Try sending the message
     let sentMsg;
+
+    // Strategy 1: quoted reply via message.reply()
     try {
       sentMsg = await message.reply(replyText);
     } catch (replyErr) {
-      logger.warn(`Failed to reply quoted to ${message.from}: ${replyErr.message}. Attempting direct send fallback.`);
-      if (chat && chat.id && chat.id._serialized) {
+      logger.warn(`message.reply() failed for ${message.from}: ${replyErr.message}. Trying direct send.`);
+    }
+
+    // Strategy 2: send via chat object
+    if (!sentMsg && chat && chat.id && chat.id._serialized) {
+      try {
         sentMsg = await client.sendMessage(chat.id._serialized, replyText);
-      } else {
-        throw replyErr;
+      } catch (chatSendErr) {
+        logger.warn(`client.sendMessage(chat) failed for ${message.from}: ${chatSendErr.message}`);
       }
     }
+
+    // Strategy 3: send via resolved phone number JID
+    if (!sentMsg && sendToJid) {
+      try {
+        sentMsg = await client.sendMessage(sendToJid, replyText);
+        logger.info(`Sent reply via resolved JID ${sendToJid} for LID user ${message.from}`);
+      } catch (jidSendErr) {
+        logger.error(`client.sendMessage(resolvedJid) failed for ${sendToJid}: ${jidSendErr.message}`);
+        throw jidSendErr;
+      }
+    }
+
+    if (!sentMsg) {
+      logger.error(`All send strategies failed for ${message.from}. Could not deliver reply.`);
+      return false;
+    }
+
     if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
       rememberBotMessageId(sentMsg.id._serialized);
     }
