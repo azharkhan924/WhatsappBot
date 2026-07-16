@@ -1105,8 +1105,23 @@ async function requestPairingCode(rawPhone) {
     throw new Error('Please enter a valid phone number with country code (e.g. 14155551234).');
   }
   logger.info(`Requesting WhatsApp pairing code for ${phone}...`);
-  const code = await client.requestPairingCode(phone);
-  return code;
+  try {
+    const code = await client.requestPairingCode(phone);
+    return code;
+  } catch (err) {
+    logger.error(`Failed to request pairing code: ${err.message}`);
+    if (
+      err.message.includes('detached Frame') ||
+      err.message.includes('Execution context was destroyed') ||
+      err.message.includes('Session closed') ||
+      err.message.length <= 2 // minified Puppeteer errors like "r" or "t"
+    ) {
+      logger.warn('Puppeteer frame is corrupted. Triggering client recreation...');
+      destroyAndRecreateClient('Pairing code request failed: ' + err.message).catch(() => {});
+      throw new Error('WhatsApp browser session expired. The bot is reconnecting — please try again in 30 seconds.');
+    }
+    throw err;
+  }
 }
 
 async function hardReset() {
