@@ -49,6 +49,22 @@ function formatJid(jidOrNumber) {
   return `${str}@c.us`;
 }
 
+// Cache to avoid querying the same LID to phone number multiple times
+const lidCache = new Map();
+
+function isPuppeteerCrash(err) {
+  if (!err || !err.message) return false;
+  const msg = err.message;
+  return (
+    msg.includes('detached Frame') ||
+    msg.includes('Target closed') ||
+    msg.includes('Execution context was destroyed') ||
+    msg.includes('Session closed') ||
+    msg.includes('Protocol error') ||
+    (msg.length > 0 && msg.length <= 2) // minified Puppeteer errors like "r" or "t"
+  );
+}
+
 const stats = {
   startedAt: Date.now(),
   messagesReceived: 0,
@@ -542,6 +558,12 @@ async function getChatMessageChat(message, senderNumber) {
 }
 
 async function handleIncomingMessage(message) {
+  // Early exit guard: skip processing if client is not fully ready/reconnecting
+  if (!client || !isReady || isReconnecting) {
+    logger.warn(`Skipping incoming message from ${message.from}: WhatsApp client is not fully ready or is reconnecting.`);
+    return;
+  }
+
   stats.messagesReceived += 1;
 
   // Ignore messages sent by the bot itself.
@@ -588,9 +610,20 @@ async function handleIncomingMessage(message) {
     }
   } catch (err) {
     logger.warn(`Failed to resolve contact info: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      logger.warn('Puppeteer crashed during getContact(). Triggering client recreation...');
+      destroyAndRecreateClient('getContact failed: ' + err.message).catch(() => {});
+      return;
+    }
   }
 
-  // For LID-based JIDs, resolve the real phone number via WhatsApp's internal API
+  // Check the LID-to-phone cache first
+  if (isLidJid && lidCache.has(senderId)) {
+    senderNumber = lidCache.get(senderId);
+    logger.debug?.(`Resolved LID ${senderId} from cache to phone number ${senderNumber}`) || void 0;
+  }
+
+  // For LID-based JIDs, resolve the real phone number via WhatsApp's internal API if not cached
   if (!senderNumber && isLidJid && client && client.pupPage) {
     try {
       const resolved = await client.pupPage.evaluate(async (lid) => {
@@ -603,10 +636,16 @@ async function handleIncomingMessage(message) {
       }, senderId);
       if (resolved) {
         senderNumber = resolved;
-        logger.info(`Resolved LID ${senderId} to phone number ${senderNumber}`);
+        lidCache.set(senderId, resolved);
+        logger.info(`Resolved LID ${senderId} to phone number ${senderNumber} (and cached)`);
       }
     } catch (err) {
       logger.warn(`Failed to resolve LID to phone number: ${err.message}`);
+      if (isPuppeteerCrash(err)) {
+        logger.warn('Puppeteer crashed during LID resolution. Triggering client recreation...');
+        destroyAndRecreateClient('LID resolution failed: ' + err.message).catch(() => {});
+        return;
+      }
     }
   }
 
@@ -850,17 +889,9 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
     if (!sent) {
       logger.error(`All send strategies failed for ${message.from}. Could not deliver reply.`);
       // Check if the browser is dead and trigger auto-reconnect
-      const errMsg = lastSendError ? lastSendError.message : '';
-      if (
-        errMsg.includes('detached Frame') ||
-        errMsg.includes('Target closed') ||
-        errMsg.includes('Execution context was destroyed') ||
-        errMsg.includes('Session closed') ||
-        errMsg.includes('Protocol error') ||
-        (errMsg.length > 0 && errMsg.length <= 2) // minified Puppeteer errors
-      ) {
-        logger.warn('Browser appears dead. Triggering client recreation...');
-        destroyAndRecreateClient('All send strategies failed: ' + errMsg).catch(() => {});
+      if (isPuppeteerCrash(lastSendError)) {
+        logger.warn(`Browser appears dead. Triggering client recreation: ${lastSendError?.message}`);
+        destroyAndRecreateClient('All send strategies failed: ' + lastSendError?.message).catch(() => {});
       }
       return false;
     }
@@ -873,11 +904,7 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
     return true;
   } catch (err) {
     logger.error(`Failed to send reply to ${message.from}: ${err.message}`);
-    if (
-      err.message.includes('detached Frame') ||
-      err.message.includes('Execution context was destroyed') ||
-      err.message.includes('Session closed')
-    ) {
+    if (isPuppeteerCrash(err)) {
       await destroyAndRecreateClient(err.message);
     }
     return false;
@@ -908,12 +935,7 @@ async function sendMessage(to, text) {
     return sentMsg;
   } catch (err) {
     logger.error(`sendMessage failed: ${err.message}`);
-    if (
-      err.message.includes('detached Frame') ||
-      err.message.includes('Execution context was destroyed') ||
-      err.message.includes('Session closed') ||
-      err.message.includes('Target closed')
-    ) {
+    if (isPuppeteerCrash(err)) {
       await destroyAndRecreateClient(err.message);
     }
     throw err;
@@ -969,12 +991,7 @@ async function sendMediaMessage(to, filePath, caption = '') {
     return sentMsg;
   } catch (err) {
     logger.error(`sendMediaMessage failed: ${err.message}`);
-    if (
-      err.message.includes('detached Frame') ||
-      err.message.includes('Execution context was destroyed') ||
-      err.message.includes('Session closed') ||
-      err.message.includes('Target closed')
-    ) {
+    if (isPuppeteerCrash(err)) {
       await destroyAndRecreateClient(err.message);
     }
     throw err;
@@ -993,6 +1010,9 @@ async function findChatByName(name) {
     return chats.find((c) => c.name && c.name.toLowerCase() === lowerName) || null;
   } catch (err) {
     logger.warn(`findChatByName error: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      destroyAndRecreateClient('findChatByName failed: ' + err.message).catch(() => {});
+    }
     return null;
   }
 }
@@ -1009,7 +1029,7 @@ async function getAvailableChats() {
         groups.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Group' });
       } else if (chat.isChannel || (chat.id && chat.id.server === 'newsletter') || (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter'))) {
         channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
-      } else if (chat.id && chat.id.server === 'c.us') {
+      } else if (chat.id && (chat.id.server === 'c.us' || chat.id.server === 'lid')) {
         directChats.push({ id: chat.id._serialized, name: chat.name || chat.id.user || 'Unnamed Contact' });
       }
     }
@@ -1018,6 +1038,9 @@ async function getAvailableChats() {
     return { groups, channels, directChats, totalChats: chats.length, raw };
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      destroyAndRecreateClient('getAvailableChats failed: ' + err.message).catch(() => {});
+    }
     return { groups: [], channels: [], directChats: [] };
   }
 }
@@ -1026,29 +1049,48 @@ async function fetchChatMessages(chatId, limit = 80) {
   if (!client || !isReady) {
     throw new Error('WhatsApp client is not ready.');
   }
-  const chat = await client.getChatById(chatId);
+  let chat;
+  try {
+    chat = await client.getChatById(chatId);
+  } catch (err) {
+    logger.error(`fetchChatMessages: getChatById failed for ${chatId}: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      logger.warn('Puppeteer crashed during fetchChatMessages. Triggering client recreation...');
+      destroyAndRecreateClient('fetchChatMessages failed: ' + err.message).catch(() => {});
+      throw new Error('WhatsApp browser session crashed. Reconnecting...');
+    }
+    return [];
+  }
   if (!chat) {
     throw new Error(`Chat with ID ${chatId} not found.`);
   }
-  const messages = await chat.fetchMessages({ limit });
-  return messages.map((m) => {
-    // Determine a clean display name for the sender
-    let senderName = 'Contact';
-    if (m.fromMe) {
-      senderName = 'Me';
-    } else if (m._data && m._data.notifyName) {
-      senderName = m._data.notifyName;
-    } else if (chat.name) {
-      senderName = chat.name;
-    }
+  try {
+    const messages = await chat.fetchMessages({ limit });
+    return messages.map((m) => {
+      // Determine a clean display name for the sender
+      let senderName = 'Contact';
+      if (m.fromMe) {
+        senderName = 'Me';
+      } else if (m._data && m._data.notifyName) {
+        senderName = m._data.notifyName;
+      } else if (chat.name) {
+        senderName = chat.name;
+      }
 
-    return {
-      body: m.body || '',
-      fromMe: !!m.fromMe,
-      senderName,
-      timestamp: m.timestamp,
-    };
-  });
+      return {
+        body: m.body || '',
+        fromMe: !!m.fromMe,
+        senderName,
+        timestamp: m.timestamp,
+      };
+    });
+  } catch (err) {
+    logger.error(`fetchChatMessages: fetchMessages failed for ${chatId}: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      destroyAndRecreateClient('fetchMessages failed: ' + err.message).catch(() => {});
+    }
+    return [];
+  }
 }
 
 async function getChannelIdFromLink(inviteLink) {
@@ -1088,6 +1130,9 @@ async function getChannelIdFromLink(inviteLink) {
     return channelId;
   } catch (err) {
     logger.error(`Error getting channel from link: ${err.message}`);
+    if (isPuppeteerCrash(err)) {
+      destroyAndRecreateClient('getChannelIdFromLink failed: ' + err.message).catch(() => {});
+    }
     throw err;
   }
 }
@@ -1127,12 +1172,7 @@ async function requestPairingCode(rawPhone) {
     return code;
   } catch (err) {
     logger.error(`Failed to request pairing code: ${err.message}`);
-    if (
-      err.message.includes('detached Frame') ||
-      err.message.includes('Execution context was destroyed') ||
-      err.message.includes('Session closed') ||
-      err.message.length <= 2 // minified Puppeteer errors like "r" or "t"
-    ) {
+    if (isPuppeteerCrash(err)) {
       logger.warn('Puppeteer frame is corrupted. Triggering client recreation...');
       destroyAndRecreateClient('Pairing code request failed: ' + err.message).catch(() => {});
       throw new Error('WhatsApp browser session expired. The bot is reconnecting — please try again in 30 seconds.');
