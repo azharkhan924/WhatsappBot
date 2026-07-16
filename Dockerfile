@@ -47,4 +47,4 @@ RUN mkdir -p session logs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "--max-old-space-size=300", "server.js"]

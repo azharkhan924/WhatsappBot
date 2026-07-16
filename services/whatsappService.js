@@ -356,6 +356,10 @@ function createClient() {
         '--single-process',
         '--disable-features=IsolateOrigins,site-per-process',
         '--disable-site-isolation-trials',
+        '--js-flags=--max-old-space-size=150',
+        '--disable-extensions',
+        '--disable-default-apps',
+        '--mute-audio'
       ],
     },
   });
