@@ -519,6 +519,23 @@ function isJidMatchList(jid, list) {
   });
 }
 
+async function getChatMessageChat(message, senderNumber) {
+  try {
+    return await message.getChat();
+  } catch (err) {
+    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Retrying with resolved sender number.`);
+    try {
+      const resolvedJid = formatJid(senderNumber);
+      if (resolvedJid && resolvedJid !== message.from) {
+        return await client.getChatById(resolvedJid);
+      }
+    } catch (fallbackErr) {
+      logger.error(`Fallback failed to get chat for ${message.from}: ${fallbackErr.message}`);
+    }
+    throw err;
+  }
+}
+
 async function handleIncomingMessage(message) {
   stats.messagesReceived += 1;
 
@@ -611,7 +628,7 @@ async function handleIncomingMessage(message) {
     const muteType = muteService.getMuteType(userId);
     if (muteType === 'admin_handover') {
       logger.info(`User ${userId} is in admin_handover mute. Sending automated holding reply.`);
-      const chat = await message.getChat();
+      const chat = await getChatMessageChat(message, senderNumber);
       await sendHumanLikeReply(chat, message, "An admin has been notified and will handle your request personally.");
     } else {
       logger.info(`AI replies muted for ${userId}. Skipping reply.`);
@@ -663,7 +680,7 @@ async function handleIncomingMessage(message) {
     muteService.muteUser(userId, pauseHours);
 
     // Send confirmation to the user (fetch chat lazily here)
-    const chat = await message.getChat();
+    const chat = await getChatMessageChat(message, senderNumber);
     const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
     await sendHumanLikeReply(chat, message, userConfirm);
 
@@ -684,7 +701,7 @@ async function handleIncomingMessage(message) {
   }
 
   // Fetch the chat object lazily for commands/replies
-  const chat = await message.getChat();
+  const chat = await getChatMessageChat(message, senderNumber);
 
   // Slash commands bypass the AI pipeline entirely.
   if (isCommand(text)) {
@@ -779,7 +796,17 @@ async function sendHumanLikeReply(chat, message, replyText) {
       return false;
     }
 
-    const sentMsg = await message.reply(replyText);
+    let sentMsg;
+    try {
+      sentMsg = await message.reply(replyText);
+    } catch (replyErr) {
+      logger.warn(`Failed to reply quoted to ${message.from}: ${replyErr.message}. Attempting direct send fallback.`);
+      if (chat && chat.id && chat.id._serialized) {
+        sentMsg = await client.sendMessage(chat.id._serialized, replyText);
+      } else {
+        throw replyErr;
+      }
+    }
     if (sentMsg && sentMsg.id && sentMsg.id._serialized) {
       rememberBotMessageId(sentMsg.id._serialized);
     }
