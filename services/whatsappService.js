@@ -559,9 +559,10 @@ function createClient() {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
+        '--single-process',
         '--disable-features=IsolateOrigins,site-per-process',
         '--disable-site-isolation-trials',
-        '--js-flags=--max-old-space-size=512',
+        '--js-flags=--max-old-space-size=256',
         '--disable-extensions',
         '--disable-default-apps',
         '--mute-audio'
@@ -1398,9 +1399,7 @@ async function getAvailableChats() {
     return _cachedChats;
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
-    if (isPuppeteerCrash(err)) {
-      destroyAndRecreateClient('getAvailableChats failed: ' + err.message).catch(() => {});
-    }
+    // Do NOT trigger reconnect here — let the health check handle it.
     // Return stale cache if available, otherwise empty.
     if (_cachedChats) return _cachedChats;
     return { groups: [], channels: [], directChats: [] };
