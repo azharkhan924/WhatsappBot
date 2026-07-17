@@ -289,8 +289,8 @@ function getDashboardStatus() {
 // whatsapp-web.js relies on is usually dead or frozen.  A periodic
 // heartbeat detects this and automatically recreates the client so
 // you don't have to restart the bot manually.
-const HEALTH_CHECK_INTERVAL_MS = 30_000; // 30 seconds
-const HEALTH_FAIL_THRESHOLD = 2; // require 2 consecutive failures before reconnect
+const HEALTH_CHECK_INTERVAL_MS = 60_000; // 60 seconds
+const HEALTH_FAIL_THRESHOLD = 3; // require 3 consecutive failures before reconnect
 let consecutiveHealthFailures = 0;
 let healthCheckCount = 0;
 
@@ -366,11 +366,11 @@ function computeHumanDelay(replyLength = 0, incomingLength = 0) {
   const jitterRange = Math.max(1000, typingDelayMaxMs - typingDelayMinMs);
   const baseJitter = typingDelayMinMs + Math.floor(Math.random() * Math.min(jitterRange, 2000));
 
-  // Length scaling: ~25ms per character of reply, plus ~10ms per character of incoming message
-  const lengthBonus = Math.floor(safeReplyLen * 25 + safeIncomingLen * 10);
+  // Length scaling: ~10ms per character of reply, plus ~5ms per character of incoming message
+  const lengthBonus = Math.floor(safeReplyLen * 10 + safeIncomingLen * 5);
 
-  // Cap the length bonus at 12000ms (12 seconds) so replies don't take unreasonably long
-  const cappedBonus = Math.min(lengthBonus, 12000);
+  // Cap the length bonus at 4000ms so replies stay fast
+  const cappedBonus = Math.min(lengthBonus, 4000);
 
   return baseJitter + cappedBonus;
 }
@@ -549,9 +549,10 @@ function createClient() {
         '--no-first-run',
         '--no-zygote',
         '--disable-gpu',
+        '--single-process',
         '--disable-features=IsolateOrigins,site-per-process',
         '--disable-site-isolation-trials',
-        '--js-flags=--max-old-space-size=512',
+        '--js-flags=--max-old-space-size=256',
         '--disable-extensions',
         '--disable-default-apps',
         '--mute-audio'
@@ -724,25 +725,25 @@ async function getChatMessageChat(message, senderNumber) {
   try {
     return await message.getChat();
   } catch (err) {
-    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Trying fallbacks.`);
+    logger.warn(`Failed to get chat directly for ${message.from}: ${err.message}. Trying fallback.`);
   }
 
-  // Strategy 2: Try with the resolved phone number JID (@c.us)
-  try {
-    const resolvedJid = formatJid(senderNumber);
-    if (resolvedJid && resolvedJid !== message.from) {
-      return await client.getChatById(resolvedJid);
-    }
-  } catch (fallbackErr) {
-    logger.warn(`Fallback getChatById(@c.us) also failed for ${message.from}: ${fallbackErr.message}`);
-  }
-
-  // Strategy 3: Try with the original raw ID (handles LID-indexed chats)
+  // For LID senders, skip the @c.us lookup (it always fails) and go straight to LID lookup
   if (isLidJid(message.from)) {
     try {
       return await client.getChatById(message.from);
     } catch (lidErr) {
       logger.warn(`Fallback getChatById(LID) also failed for ${message.from}: ${lidErr.message}`);
+    }
+  } else {
+    // For non-LID, try the resolved phone number JID
+    try {
+      const resolvedJid = formatJid(senderNumber);
+      if (resolvedJid && resolvedJid !== message.from) {
+        return await client.getChatById(resolvedJid);
+      }
+    } catch (fallbackErr) {
+      logger.warn(`Fallback getChatById(@c.us) also failed for ${message.from}: ${fallbackErr.message}`);
     }
   }
 
@@ -1069,13 +1070,8 @@ async function handleIncomingMessage(message) {
 
   conversationMemory.addMessage(userId, 'user', text);
 
-  if (chat && await hasHumanReplied(chat, message)) {
-    logger.info(`Human already replied to ${userId} before AI generation. Skipping bot reply.`);
-    logToDashboard(`Cancelled AI reply to ${logIdentifier} (human replied first)`, 'warning');
-    return;
-  }
-
   // AI generation (handles its own retries/timeout/fallback internally).
+  // Note: hasHumanReplied check is done ONCE inside sendHumanLikeReply (after typing delay) to minimize Puppeteer calls.
   const { reply, failed } = await aiService.generateReply(userId, text, history);
   if (failed) stats.aiFailures += 1;
 
@@ -1095,16 +1091,9 @@ async function sendHumanLikeReply(chat, message, replyText, sendToJid) {
       return true;
     }
 
-    // If we have a valid chat object, do the full human-like flow
-    if (chat) {
-      if (await hasHumanReplied(chat, message)) {
-        logger.info(`Human already replied in chat ${message.from}. Cancelling bot reply.`);
-        return false;
-      }
-
-      if (typeof chat.sendStateTyping === 'function') {
-        try { await chat.sendStateTyping(); } catch (_) { /* ignore typing errors */ }
-      }
+    // Send typing indicator if we have a valid chat object
+    if (chat && typeof chat.sendStateTyping === 'function') {
+      try { await chat.sendStateTyping(); } catch (_) { /* ignore typing errors */ }
     }
 
     const incomingText = (message.body || '').trim();
@@ -1358,8 +1347,19 @@ async function findChatByName(name) {
   }
 }
 
+// ── Cached getAvailableChats (60-second TTL) ────────────────────────
+let _cachedChats = null;
+let _cachedChatsAt = 0;
+const CHATS_CACHE_TTL_MS = 60_000; // 60 seconds
+
 async function getAvailableChats() {
   if (!client || !isReady) return { groups: [], channels: [], directChats: [], totalChats: 0 };
+
+  // Return cached result if fresh
+  if (_cachedChats && (Date.now() - _cachedChatsAt) < CHATS_CACHE_TTL_MS) {
+    return _cachedChats;
+  }
+
   try {
     const chats = await client.getChats();
     const groups = [];
@@ -1376,12 +1376,14 @@ async function getAvailableChats() {
     }
     const raw = chats.map(c => ({ name: c.name || 'Unnamed', id: c.id ? c.id._serialized : 'unknown' }));
     logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups, ${channels.length} channels, and ${directChats.length} direct chats.`);
-    return { groups, channels, directChats, totalChats: chats.length, raw };
+    _cachedChats = { groups, channels, directChats, totalChats: chats.length, raw };
+    _cachedChatsAt = Date.now();
+    return _cachedChats;
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
-    if (isPuppeteerCrash(err)) {
-      destroyAndRecreateClient('getAvailableChats failed: ' + err.message).catch(() => {});
-    }
+    // Do NOT trigger reconnect here — let the health check handle it.
+    // Return stale cache if available, otherwise empty.
+    if (_cachedChats) return _cachedChats;
     return { groups: [], channels: [], directChats: [] };
   }
 }
