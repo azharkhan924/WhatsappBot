@@ -79,9 +79,11 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
   }
 
   // 2. Generate Image
-  let imagePrompt = `Theme: ${systemContext.substring(0, 300)}... Prompt: ${commonPrompt}`;
+  // Clean prompt: do NOT prepend system instructions/business context to the image generation prompt,
+  // as it confuses the model and breaks text-rendering capabilities (e.g., in Flux).
+  let imagePrompt = commonPrompt;
   if (imageHint) {
-    imagePrompt += ` Style instructions: ${imageHint}`;
+    imagePrompt += `, ${imageHint}`;
   }
 
   // Check if Cloudflare Worker is configured

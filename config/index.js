@@ -76,10 +76,10 @@ const config = {
     cloudflare: {
       url: process.env.CLOUDFLARE_IMAGE_GEN_URL || '',
       apiKey: process.env.CLOUDFLARE_IMAGE_GEN_API_KEY || '',
-      model: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/stabilityai/stable-diffusion-xl-base-1.0',
+      model: process.env.CLOUDFLARE_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell',
       width: toInt(process.env.CLOUDFLARE_IMAGE_WIDTH, 1024),
       height: toInt(process.env.CLOUDFLARE_IMAGE_HEIGHT, 1024),
-      numSteps: toInt(process.env.CLOUDFLARE_IMAGE_NUM_STEPS, 20),
+      numSteps: toInt(process.env.CLOUDFLARE_IMAGE_NUM_STEPS, 4),
       negativePrompt: process.env.CLOUDFLARE_IMAGE_NEGATIVE_PROMPT || 'blurry, low quality, distorted, deformed, bad anatomy, text, watermark',
     },
   },
