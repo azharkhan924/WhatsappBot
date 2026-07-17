@@ -52,26 +52,36 @@ function formatJid(jidOrNumber) {
 // ── LID Abstraction Helpers ─────────────────────────────────────────
 // Centralized identifier checks. Update these if WhatsApp adds new formats.
 
+function getChatJid(chat) {
+  if (!chat) return '';
+  if (typeof chat === 'string') return chat;
+  if (typeof chat.id === 'string') return chat;
+  if (chat.id && typeof chat.id._serialized === 'string') return chat.id._serialized;
+  if (chat.id && typeof chat.id.user === 'string' && typeof chat.id.server === 'string') {
+    return `${chat.id.user}@${chat.id.server}`;
+  }
+  return '';
+}
+
 function isLidJid(jid) {
   return typeof jid === 'string' && jid.includes('@lid');
 }
 
 function isDirectChat(chat) {
-  if (!chat || !chat.id) return false;
-  const server = chat.id.server;
-  return server === 'c.us' || server === 'lid';
+  const jid = getChatJid(chat);
+  return jid.endsWith('@c.us') || jid.endsWith('@lid');
 }
 
 function isGroupChat(chat) {
-  return !!(chat && (chat.isGroup || (chat.id && chat.id.server === 'g.us')));
+  if (chat && chat.isGroup) return true;
+  const jid = getChatJid(chat);
+  return jid.endsWith('@g.us');
 }
 
 function isChannel(chat) {
-  if (!chat) return false;
-  if (chat.isChannel) return true;
-  if (chat.id && chat.id.server === 'newsletter') return true;
-  if (chat.id && chat.id._serialized && chat.id._serialized.endsWith('@newsletter')) return true;
-  return false;
+  if (chat && chat.isChannel) return true;
+  const jid = getChatJid(chat);
+  return jid.endsWith('@newsletter');
 }
 
 // ── Enhanced Puppeteer Crash Detection ──────────────────────────────
@@ -1366,15 +1376,23 @@ async function getAvailableChats() {
     const channels = [];
     const directChats = [];
     for (const chat of chats) {
+      const jid = getChatJid(chat);
+      if (!jid) continue;
+
+      const name = chat.name || (chat.id && chat.id.user) || jid.split('@')[0] || 'Unnamed';
+
       if (isGroupChat(chat)) {
-        groups.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Group' });
+        groups.push({ id: jid, name: name || 'Unnamed Group' });
       } else if (isChannel(chat)) {
-        channels.push({ id: chat.id._serialized, name: chat.name || 'Unnamed Channel' });
+        channels.push({ id: jid, name: name || 'Unnamed Channel' });
       } else if (isDirectChat(chat)) {
-        directChats.push({ id: chat.id._serialized, name: chat.name || chat.id.user || 'Unnamed Contact' });
+        directChats.push({ id: jid, name: name || 'Unnamed Contact' });
       }
     }
-    const raw = chats.map(c => ({ name: c.name || 'Unnamed', id: c.id ? c.id._serialized : 'unknown' }));
+    const raw = chats.map(c => {
+      const jid = getChatJid(c);
+      return { name: c.name || 'Unnamed', id: jid || 'unknown' };
+    });
     logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups, ${channels.length} channels, and ${directChats.length} direct chats.`);
     _cachedChats = { groups, channels, directChats, totalChats: chats.length, raw };
     _cachedChatsAt = Date.now();
