@@ -159,7 +159,8 @@ async function postTriggerScheduler(req, res, next) {
 
 async function getAvailableChats(req, res, next) {
   try {
-    const chats = await whatsappService.getAvailableChats();
+    const force = req.query.force === 'true' || req.query.refresh === 'true';
+    const chats = await whatsappService.getAvailableChats(force);
     res.json({ success: true, ...chats });
   } catch (err) {
     next(err);

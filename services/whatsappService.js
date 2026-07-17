@@ -1362,16 +1362,47 @@ let _cachedChats = null;
 let _cachedChatsAt = 0;
 const CHATS_CACHE_TTL_MS = 60_000; // 60 seconds
 
-async function getAvailableChats() {
+async function getAvailableChats(forceRefresh = false) {
   if (!client || !isReady) return { groups: [], channels: [], directChats: [], totalChats: 0 };
 
-  // Return cached result if fresh
-  if (_cachedChats && (Date.now() - _cachedChatsAt) < CHATS_CACHE_TTL_MS) {
+  // Return cached result if fresh and not forced
+  if (!forceRefresh && _cachedChats && (Date.now() - _cachedChatsAt) < CHATS_CACHE_TTL_MS) {
     return _cachedChats;
   }
 
   try {
-    const chats = await client.getChats();
+    // Lightweight extraction: fetch only JID, name, and classification flags.
+    // This avoids JSON serialization of huge Backbone model trees (messages list, participants, etc.)
+    // which consumes huge RAM and CPU, causing frequent detached frame or protocol 'r' crashes.
+    let chats = [];
+    try {
+      if (client.pupPage) {
+        chats = await client.pupPage.evaluate(() => {
+          if (!window.Store || !window.Store.Chat || !window.Store.Chat.models) return null;
+          return window.Store.Chat.models.map(chat => {
+            const jid = chat.id ? (chat.id._serialized || chat.id) : '';
+            return {
+              id: {
+                _serialized: jid,
+                server: chat.id ? chat.id.server : '',
+                user: chat.id ? chat.id.user : ''
+              },
+              name: chat.name || '',
+              isGroup: !!chat.isGroup,
+              isReadOnly: !!chat.isReadOnly,
+              isChannel: !!(chat.isChannel || (chat.id && chat.id.server === 'newsletter'))
+            };
+          });
+        });
+      }
+      if (!chats || chats.length === 0) {
+        chats = await client.getChats();
+      }
+    } catch (lightweightErr) {
+      logger.warn(`Lightweight getChats failed: ${lightweightErr.message}. Falling back to standard getChats.`);
+      chats = await client.getChats();
+    }
+
     const groups = [];
     const channels = [];
     const directChats = [];

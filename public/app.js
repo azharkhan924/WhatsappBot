@@ -1111,7 +1111,10 @@ $('scheduler-ad-upload-input')?.addEventListener('change', async (e) => {
 // Load available chats from backend to populate datalists
 async function loadAvailableChats(showToast = false) {
   try {
-    const res = await fetch(`${API_BASE}/api/scheduler/available-chats`, {
+    const url = showToast
+      ? `${API_BASE}/api/scheduler/available-chats?refresh=true`
+      : `${API_BASE}/api/scheduler/available-chats`;
+    const res = await fetch(url, {
       headers: { 'x-dashboard-key': DASHBOARD_KEY },
     });
     const data = await res.json();
