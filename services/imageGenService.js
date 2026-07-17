@@ -96,12 +96,33 @@ async function generateImageWithCaption({ commonPrompt, imageHint, captionHint }
         headers['Authorization'] = `Bearer ${cloudflareApiKey}`;
       }
 
+      const payload = {
+        prompt: imagePrompt,
+        model: config.ai.cloudflare.model,
+        width: config.ai.cloudflare.width,
+        height: config.ai.cloudflare.height,
+      };
+
+      // Apply negative prompt for Stable Diffusion / SDXL models
+      const isSdxl = config.ai.cloudflare.model.includes('stable-diffusion') || config.ai.cloudflare.model.includes('sdxl');
+      if (isSdxl && config.ai.cloudflare.negativePrompt) {
+        payload.negative_prompt = config.ai.cloudflare.negativePrompt;
+      }
+
+      // Handle step optimization dynamically based on model type
+      const isFastModel = config.ai.cloudflare.model.includes('schnell') || config.ai.cloudflare.model.includes('lightning') || config.ai.cloudflare.model.includes('turbo');
+      if (isFastModel) {
+        // Fast models (schnell, lightning, turbo) are designed for 4-8 steps
+        payload.num_steps = process.env.CLOUDFLARE_IMAGE_NUM_STEPS ? config.ai.cloudflare.numSteps : 4;
+      } else {
+        payload.num_steps = config.ai.cloudflare.numSteps;
+      }
+
+      logger.info(`ImageGen: Sending payload: ${JSON.stringify({ ...payload, prompt: '[REDACTED]' })}`);
+
       const response = await axios.post(
         cloudflareUrl,
-        { 
-          prompt: imagePrompt,
-          model: '@cf/black-forest-labs/flux-1-schnell'
-        },
+        payload,
         {
           headers,
           responseType: 'arraybuffer', // Get raw binary bytes from Cloudflare
