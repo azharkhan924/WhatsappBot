@@ -235,6 +235,9 @@ async function postPairingCode(req, res, next) {
     const code = await whatsappService.requestPairingCode(phone);
     res.json({ success: true, pairingCode: code });
   } catch (err) {
+    if (err.message && err.message.includes('not initialized')) {
+      return res.status(503).json({ success: false, message: "WhatsApp client is still initializing. Please wait a moment." });
+    }
     next(err);
   }
 }

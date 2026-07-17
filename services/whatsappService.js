@@ -69,7 +69,7 @@ function isLidJid(jid) {
 
 function isDirectChat(chat) {
   const jid = getChatJid(chat);
-  return jid.endsWith('@c.us') || jid.endsWith('@lid');
+  return jid.endsWith('@c.us') || jid.endsWith('@lid') || jid.endsWith('@s.whatsapp.net');
 }
 
 function isGroupChat(chat) {
@@ -90,7 +90,12 @@ function isChannel(chat) {
 
 function isPuppeteerCrash(err) {
   if (!err) return false;
-  const msg = err.message || '';
+  let msg = err.message || '';
+  if (typeof err === 'string') msg = err;
+  
+  // Clean null bytes, invisible characters, and whitespace for accurate length checking
+  const cleanMsg = msg.replace(/[\x00-\x20\u200B-\u200D\uFEFF]/g, '');
+
   const name = err.name || '';
   const stack = err.stack || '';
   const code = err.code || '';
@@ -103,7 +108,7 @@ function isPuppeteerCrash(err) {
     msg.includes('Protocol error') ||
     msg.includes('Connection closed') ||
     msg.includes('WebSocket is not open') ||
-    (msg.length > 0 && msg.length <= 2) || // minified Puppeteer errors like "r" or "t"
+    (cleanMsg.length > 0 && cleanMsg.length <= 3) || // minified Puppeteer errors like "r" or "t"
     name === 'ProtocolError' ||
     name === 'TargetCloseError' ||
     code === 'ERR_CONNECTION_CLOSED' ||
@@ -111,7 +116,7 @@ function isPuppeteerCrash(err) {
     stack.includes('CDPSession')
   );
 
-  if (isCrash) {
+  if (isCrash && typeof stats !== 'undefined' && stats) {
     stats.puppeteerCrashes += 1;
   }
   return isCrash;
@@ -1382,11 +1387,7 @@ async function getAvailableChats(forceRefresh = false) {
           return window.Store.Chat.models.map(chat => {
             const jid = chat.id ? (chat.id._serialized || chat.id) : '';
             return {
-              id: {
-                _serialized: jid,
-                server: chat.id ? chat.id.server : '',
-                user: chat.id ? chat.id.user : ''
-              },
+              id: typeof jid === 'string' ? jid : '',
               name: chat.name || '',
               isGroup: !!chat.isGroup,
               isReadOnly: !!chat.isReadOnly,
@@ -1400,6 +1401,28 @@ async function getAvailableChats(forceRefresh = false) {
       }
     } catch (lightweightErr) {
       logger.warn(`Lightweight getChats failed: ${lightweightErr.message}. Falling back to standard getChats.`);
+      
+      if (isPuppeteerCrash(lightweightErr)) {
+        // Trigger a background restart but don't block the UI
+        logger.error(`Puppeteer crashed during evaluate. Triggering background restart.`);
+        setTimeout(() => {
+          if (typeof destroyAndRecreateClient === 'function') {
+            destroyAndRecreateClient();
+          }
+        }, 1000);
+        
+        // Return stale cache immediately to avoid failing the request
+        if (_cachedChats) return _cachedChats;
+        return { groups: [], channels: [], directChats: [] };
+      }
+      
+      logger.warn(`lightweightErr was NOT identified as a crash by isPuppeteerCrash. Attempting fallback...`);
+      logger.error(lightweightErr.stack || 'No stack trace available for lightweightErr');
+      try {
+        const util = require('util');
+        logger.error(util.inspect(lightweightErr, { depth: 5 }));
+      } catch (e) {}
+
       chats = await client.getChats();
     }
 
@@ -1430,8 +1453,21 @@ async function getAvailableChats(forceRefresh = false) {
     return _cachedChats;
   } catch (err) {
     logger.error(`Error getting available chats: ${err.message}`);
-    // Do NOT trigger reconnect here — let the health check handle it.
-    // Return stale cache if available, otherwise empty.
+    logger.error(err.stack || 'No stack trace available');
+    try {
+      const util = require('util');
+      logger.error(util.inspect(err, { depth: 5 }));
+    } catch (e) {}
+    
+    if (isPuppeteerCrash(err)) {
+      logger.error(`Puppeteer crashed in fallback getChats. Triggering background restart.`);
+      setTimeout(() => {
+        if (typeof destroyAndRecreateClient === 'function') {
+          destroyAndRecreateClient();
+        }
+      }, 1000);
+    }
+    
     if (_cachedChats) return _cachedChats;
     return { groups: [], channels: [], directChats: [] };
   }
@@ -1553,7 +1589,7 @@ async function reconnect() {
 }
 
 async function requestPairingCode(rawPhone) {
-  if (!client) {
+  if (!client || !client.pupPage) {
     throw new Error('WhatsApp client is not initialized yet.');
   }
   const phone = String(rawPhone || '').replace(/[^0-9]/g, '');
