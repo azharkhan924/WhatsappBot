@@ -994,7 +994,7 @@ async function handleIncomingMessage(message) {
 
     // Send confirmation to the user (fetch chat lazily here)
     const chat = await getChatMessageChat(message, senderNumber);
-    const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. Azhar has been notified and will reply to you personally.`;
+    const userConfirm = `I have paused automated AI replies for the next ${pauseHours} hours. An admin has been notified and will reply to you personally.`;
     await sendHumanLikeReply(chat, message, userConfirm, sendToJid);
 
     logToDashboard(`User ${logIdentifier} requested a human. AI paused for ${pauseHours} hours.`, 'warning');
