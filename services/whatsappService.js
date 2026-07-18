@@ -1426,14 +1426,31 @@ async function getAvailableChats(forceRefresh = false) {
               ? collections.Chat.getModelsArray()
               : collections.Chat.models;
             if (!models || !Array.isArray(models)) return null;
+
+            const getSerializedId = (chatId) => {
+              if (!chatId) return '';
+              if (typeof chatId === 'string') return chatId;
+              if (typeof chatId._serialized === 'string') return chatId._serialized;
+              if (typeof chatId.toSerialized === 'function') return chatId.toSerialized();
+              if (typeof chatId.toString === 'function') {
+                const str = chatId.toString();
+                if (str && str !== '[object Object]') return str;
+              }
+              if (typeof chatId.user === 'string' && typeof chatId.server === 'string') {
+                return `${chatId.user}@${chatId.server}`;
+              }
+              return '';
+            };
+
             return models.map(chat => {
-              const jid = chat.id ? (chat.id._serialized || chat.id) : '';
+              const jid = getSerializedId(chat.id);
+              const server = (chat.id && chat.id.server) || (typeof jid === 'string' ? jid.split('@')[1] : '') || '';
               return {
-                id: typeof jid === 'string' ? jid : '',
+                id: jid,
                 name: chat.name || '',
-                isGroup: !!(chat.isGroup || (chat.id && chat.id.server === 'g.us') || chat.groupMetadata),
+                isGroup: !!(chat.isGroup || server === 'g.us' || chat.groupMetadata),
                 isReadOnly: !!(chat.isReadOnly || (chat.groupMetadata && chat.groupMetadata.announce)),
-                isChannel: !!(chat.isChannel || (chat.id && chat.id.server === 'newsletter'))
+                isChannel: !!(chat.isChannel || server === 'newsletter')
               };
             });
           } catch (e) {
