@@ -55,7 +55,7 @@ function formatJid(jidOrNumber) {
 function getChatJid(chat) {
   if (!chat) return '';
   if (typeof chat === 'string') return chat;
-  if (typeof chat.id === 'string') return chat;
+  if (typeof chat.id === 'string') return chat.id;
   if (chat.id && typeof chat.id._serialized === 'string') return chat.id._serialized;
   if (chat.id && typeof chat.id.user === 'string' && typeof chat.id.server === 'string') {
     return `${chat.id.user}@${chat.id.server}`;
