@@ -1524,21 +1524,15 @@ async function getAvailableChats(forceRefresh = false) {
     const groups = [];
     const channels = [];
     const directChats = [];
-    let logCount = 0;
     for (const chat of chats) {
       const jid = getChatJid(chat);
       if (!jid || typeof jid !== 'string') continue;
 
       const name = chat.name || (chat.id && chat.id.user) || jid.split('@')[0] || 'Unnamed';
       
-      const isGrp = isGroupChat(chat);
-      const isCh = isChannel(chat);
-      const isDir = isDirectChat(chat);
-
-      if (chat.isGroup && logCount < 5) {
-        logger.info(`Loop Debug: name="${name}", jid="${jid}", chat.isGroup=${chat.isGroup}, isGrp=${isGrp}, isCh=${isCh}, isDir=${isDir}`);
-        logCount++;
-      }
+      const isGrp = !!(chat.isGroup || jid.endsWith('@g.us'));
+      const isCh = !!(chat.isChannel || jid.endsWith('@newsletter'));
+      const isDir = !!(jid.endsWith('@c.us') || jid.endsWith('@lid') || jid.endsWith('@s.whatsapp.net'));
 
       if (isGrp) {
         groups.push({ id: jid, name: name || 'Unnamed Group' });
