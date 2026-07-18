@@ -1487,6 +1487,7 @@ async function getAvailableChats(forceRefresh = false) {
           if (evalResult.debugInfo) {
             logger.info('Lightweight getAvailableChats Debug Info: ' + JSON.stringify(evalResult.debugInfo, null, 2));
           }
+          logger.info('Sample mapped chats: ' + JSON.stringify(chats.slice(0, 5), null, 2));
         } else {
           chats = [];
         }
