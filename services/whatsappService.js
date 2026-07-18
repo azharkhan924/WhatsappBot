@@ -1350,9 +1350,45 @@ function getClient() {
 async function findChatByName(name) {
   if (!client || !isReady) return null;
   try {
-    const chats = await client.getChats();
     const lowerName = name.toLowerCase();
-    return chats.find((c) => c.name && c.name.toLowerCase() === lowerName) || null;
+    
+    // 1. Try to find using getAvailableChats cache
+    if (_cachedChats && _cachedChats.raw) {
+      const found = _cachedChats.raw.find((c) => c.name && c.name.toLowerCase() === lowerName);
+      if (found) {
+        return {
+          id: { _serialized: found.id },
+          name: found.name
+        };
+      }
+    }
+
+    // 2. Fallback: Query directly from the browser window using lightweight evaluate
+    const foundJid = await client.pupPage.evaluate((targetName) => {
+      try {
+        const collections = window.require('WAWebCollections');
+        if (!collections || !collections.Chat) return null;
+        const models = typeof collections.Chat.getModelsArray === 'function'
+          ? collections.Chat.getModelsArray()
+          : collections.Chat.models;
+        if (!models || !Array.isArray(models)) return null;
+        const lower = targetName.toLowerCase();
+        const found = models.find(c => c.name && c.name.toLowerCase() === lower);
+        if (found) {
+          return found.id ? (found.id._serialized || found.id) : null;
+        }
+      } catch (e) {}
+      return null;
+    }, name);
+
+    if (foundJid) {
+      return {
+        id: { _serialized: foundJid },
+        name: name
+      };
+    }
+
+    return null;
   } catch (err) {
     logger.warn(`findChatByName error: ${err.message}`);
     if (isPuppeteerCrash(err)) {
@@ -1383,17 +1419,27 @@ async function getAvailableChats(forceRefresh = false) {
     try {
       if (client.pupPage) {
         chats = await client.pupPage.evaluate(() => {
-          if (!window.Store || !window.Store.Chat || !window.Store.Chat.models) return null;
-          return window.Store.Chat.models.map(chat => {
-            const jid = chat.id ? (chat.id._serialized || chat.id) : '';
-            return {
-              id: typeof jid === 'string' ? jid : '',
-              name: chat.name || '',
-              isGroup: !!chat.isGroup,
-              isReadOnly: !!chat.isReadOnly,
-              isChannel: !!(chat.isChannel || (chat.id && chat.id.server === 'newsletter'))
-            };
-          });
+          try {
+            const collections = window.require('WAWebCollections');
+            if (!collections || !collections.Chat) return null;
+            const models = typeof collections.Chat.getModelsArray === 'function'
+              ? collections.Chat.getModelsArray()
+              : collections.Chat.models;
+            if (!models || !Array.isArray(models)) return null;
+            return models.map(chat => {
+              const jid = chat.id ? (chat.id._serialized || chat.id) : '';
+              return {
+                id: typeof jid === 'string' ? jid : '',
+                name: chat.name || '',
+                isGroup: !!(chat.isGroup || (chat.id && chat.id.server === 'g.us') || chat.groupMetadata),
+                isReadOnly: !!(chat.isReadOnly || (chat.groupMetadata && chat.groupMetadata.announce)),
+                isChannel: !!(chat.isChannel || (chat.id && chat.id.server === 'newsletter'))
+              };
+            });
+          } catch (e) {
+            console.error('Error in lightweight evaluate:', e);
+            return null;
+          }
         });
       }
       if (!chats || chats.length === 0) {
