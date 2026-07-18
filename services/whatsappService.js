@@ -1477,7 +1477,7 @@ async function getAvailableChats(forceRefresh = false) {
     const directChats = [];
     for (const chat of chats) {
       const jid = getChatJid(chat);
-      if (!jid) continue;
+      if (!jid || typeof jid !== 'string') continue;
 
       const name = chat.name || (chat.id && chat.id.user) || jid.split('@')[0] || 'Unnamed';
 
@@ -1491,7 +1491,7 @@ async function getAvailableChats(forceRefresh = false) {
     }
     const raw = chats.map(c => {
       const jid = getChatJid(c);
-      return { name: c.name || 'Unnamed', id: jid || 'unknown' };
+      return { name: c.name || 'Unnamed', id: typeof jid === 'string' ? jid : 'unknown' };
     });
     logger.info(`getAvailableChats: Found ${chats.length} total chats. Filtered down to ${groups.length} groups, ${channels.length} channels, and ${directChats.length} direct chats.`);
     _cachedChats = { groups, channels, directChats, totalChats: chats.length, raw };
