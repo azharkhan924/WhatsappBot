@@ -1417,8 +1417,7 @@ async function getAvailableChats(forceRefresh = false) {
     // which consumes huge RAM and CPU, causing frequent detached frame or protocol 'r' crashes.
     let chats = [];
     try {
-      if (client.pupPage) {
-        chats = await client.pupPage.evaluate(() => {
+        const evalResult = await client.pupPage.evaluate(() => {
           try {
             const collections = window.require('WAWebCollections');
             if (!collections || !collections.Chat) return null;
@@ -1442,23 +1441,55 @@ async function getAvailableChats(forceRefresh = false) {
               return '';
             };
 
-            return models.map(chat => {
-              const jid = getSerializedId(chat.id);
-              const server = (chat.id && chat.id.server) || (typeof jid === 'string' ? jid.split('@')[1] : '') || '';
+            const first = models[0];
+            const debugInfo = first ? {
+              directKeys: Object.keys(first),
+              hasId: !!first.id,
+              idType: typeof first.id,
+              idKeys: first.id && typeof first.id === 'object' ? Object.keys(first.id) : [],
+              hasAttributes: !!first.attributes,
+              attrKeys: first.attributes ? Object.keys(first.attributes) : [],
+              sampleAttrId: first.attributes && first.attributes.id ? {
+                type: typeof first.attributes.id,
+                keys: typeof first.attributes.id === 'object' ? Object.keys(first.attributes.id) : [],
+                serialized: first.attributes.id._serialized || first.attributes.id
+              } : null
+            } : null;
+
+            const mapped = models.map(chat => {
+              const rawIdObj = chat.id || (chat.attributes && chat.attributes.id);
+              const jid = getSerializedId(rawIdObj);
+              const server = (rawIdObj && rawIdObj.server) || (typeof jid === 'string' ? jid.split('@')[1] : '') || '';
+              
+              const name = chat.name || (chat.attributes && chat.attributes.name) || '';
+              const isGroup = !!(chat.isGroup || (chat.attributes && chat.attributes.isGroup) || server === 'g.us' || chat.groupMetadata || (chat.attributes && chat.attributes.groupMetadata));
+              const isReadOnly = !!(chat.isReadOnly || (chat.attributes && chat.attributes.isReadOnly) || (chat.groupMetadata && chat.groupMetadata.announce) || (chat.attributes && chat.attributes.groupMetadata && chat.attributes.groupMetadata.announce));
+              const isChannel = !!(chat.isChannel || (chat.attributes && chat.attributes.isChannel) || server === 'newsletter');
+
               return {
                 id: jid,
-                name: chat.name || '',
-                isGroup: !!(chat.isGroup || server === 'g.us' || chat.groupMetadata),
-                isReadOnly: !!(chat.isReadOnly || (chat.groupMetadata && chat.groupMetadata.announce)),
-                isChannel: !!(chat.isChannel || server === 'newsletter')
+                name: name,
+                isGroup: isGroup,
+                isReadOnly: isReadOnly,
+                isChannel: isChannel
               };
             });
+
+            return { mapped, debugInfo };
           } catch (e) {
             console.error('Error in lightweight evaluate:', e);
             return null;
           }
         });
-      }
+
+        if (evalResult) {
+          chats = evalResult.mapped || [];
+          if (evalResult.debugInfo) {
+            logger.info('Lightweight getAvailableChats Debug Info: ' + JSON.stringify(evalResult.debugInfo, null, 2));
+          }
+        } else {
+          chats = [];
+        }
       if (!chats || chats.length === 0) {
         chats = await client.getChats();
       }
