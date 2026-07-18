@@ -1524,17 +1524,27 @@ async function getAvailableChats(forceRefresh = false) {
     const groups = [];
     const channels = [];
     const directChats = [];
+    let logCount = 0;
     for (const chat of chats) {
       const jid = getChatJid(chat);
       if (!jid || typeof jid !== 'string') continue;
 
       const name = chat.name || (chat.id && chat.id.user) || jid.split('@')[0] || 'Unnamed';
+      
+      const isGrp = isGroupChat(chat);
+      const isCh = isChannel(chat);
+      const isDir = isDirectChat(chat);
 
-      if (isGroupChat(chat)) {
+      if (chat.isGroup && logCount < 5) {
+        logger.info(`Loop Debug: name="${name}", jid="${jid}", chat.isGroup=${chat.isGroup}, isGrp=${isGrp}, isCh=${isCh}, isDir=${isDir}`);
+        logCount++;
+      }
+
+      if (isGrp) {
         groups.push({ id: jid, name: name || 'Unnamed Group' });
-      } else if (isChannel(chat)) {
+      } else if (isCh) {
         channels.push({ id: jid, name: name || 'Unnamed Channel' });
-      } else if (isDirectChat(chat)) {
+      } else if (isDir) {
         directChats.push({ id: jid, name: name || 'Unnamed Contact' });
       }
     }
